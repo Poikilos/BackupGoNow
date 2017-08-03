@@ -12,6 +12,8 @@ A backup program that anyone can use the first time, with good defaults!
 * If the program fails to load, client needs to download the runtime (such as .NET framework or Mono)
 
 ## Changes
+* (2012-07-12) Fixed problem where showing incorrect error message due to comparing index >-2 instead of >-1 (added new messages for "being used by another process" & "UnauthorizedAccessException" instead of telling user that the filename was too long in those cases)
+* (2012-07-12) only change lByteCountTotalActuallyAdded if Copy succeeded
 * (2011-02-22) Moved general file handling and drive management methods to Common.cs and LocInfo.cs, and now these files are references to those from the ForwardFileSync project.
 * (2010-12-12) added option to view log (using default txt viewer) under help menu
 * (2010-12-12) remove whitespace from beginning and end of line in RunScriptLine method

@@ -25,7 +25,7 @@ namespace JakeGustafson {
 	/// Description of MainForm.
 	/// </summary>
 	public partial class MainForm : Form {
-		public static string sMyNameAndVersion="Backup GoNow 2011-02-21";
+		public static string sMyNameAndVersion="Backup GoNow 2012-07-12";
 		public static string sMyName="Backup GoNow";
 		ArrayList alPseudoRootsNow=null;
 		ArrayList alSelectableDrives=null;
@@ -704,7 +704,7 @@ namespace JakeGustafson {
 					FileInfo fiDest=new FileInfo(sDestFile);
 					if (fiDest.Exists) {
 						if (fiDest.LastWriteTime<fiNow.LastWriteTime||fiDest.Length!=fiNow.Length) {
-							if (	fiDest.LastWriteTime==fiNow.LastWriteTime && fiDest.Length!=fiNow.Length )
+							if ( fiDest.LastWriteTime==fiNow.LastWriteTime&&fiDest.Length!=fiNow.Length )
 								Output(sDone+"Resaving: \""+sDestFile+"\"");
 							else if ( fiDest.LastWriteTime>fiNow.LastWriteTime ) {
 								Console.Error.WriteLine(sDone+"Dest is newer: \""+sDestFile+"\"");
@@ -712,12 +712,18 @@ namespace JakeGustafson {
 							else
 								Output(sDone+"Updating: \""+sDestFile+"\"");
 							if (!bTestOnly) {
-								if ( fiDest.LastWriteTime<fiNow.LastWriteTime
-								    || (fiDest.LastWriteTime==fiNow.LastWriteTime&&fiDest.Length!=fiNow.Length) )
-								lByteCountTotalActuallyAdded+=(long)fiNow.Length-(long)fiDest.Length;
+								long lByteCountTotalActuallyAdded_Delta=0;
+								//if ( fiDest.LastWriteTime<fiNow.LastWriteTime
+								//    || (fiDest.LastWriteTime==fiNow.LastWriteTime&&fiDest.Length!=fiNow.Length) )
+									lByteCountTotalActuallyAdded_Delta=(long)fiNow.Length-(long)fiDest.Length; //ADJUST STATUS (store file lengths before changing file)
 								sLastAttemptedCommand=sCP+" \""+SrcFile_FullName+"\" \""+sDestFile+"\"";
+								if (fiDest.IsReadOnly) {//(new FileInfo(sDestFile)).IsReadOnly) {
+									File.SetAttributes(sDestFile, FileAttributes.Normal);
+									File.Delete(sDestFile);
+								}
 								File.Copy(SrcFile_FullName,sDestFile,true);
-								ulByteCountTotalActuallyCopied+=(ulong)fiNow.Length;
+								lByteCountTotalActuallyAdded+=lByteCountTotalActuallyAdded_Delta;//ADJUST STATUS
+								ulByteCountTotalActuallyCopied+=(ulong)fiNow.Length; //ADJUST STATUS
 							}
 						}
 						else {
@@ -751,17 +757,23 @@ namespace JakeGustafson {
 				if (sLastAttemptedCommand!=null&&sLastAttemptedCommand!="") {
 					WriteRetryLineIfCreatingRetryBatch(sLastAttemptedCommand);
 				}
-				if (exn.ToString().ToLower().IndexOf("system.io.ioexception: disk full")>-1
-				   || exn.ToString().ToLower().IndexOf("system.io.ioexception: there is not enough space on the disk")>-1) {
+				if (exn.ToString().ToLower().IndexOf("system.io.ioexception: disk full")>=0
+				   || exn.ToString().ToLower().IndexOf("system.io.ioexception: there is not enough space on the disk")>=0) {
 					bDiskFullLastRun=true;
 				}
-				else if (exn.ToString().ToLower().IndexOf("too long")>-2) {
-					alCopyError.Add("Filename is too long for "+sCopyErrorFileFullNameOpener+SrcFile_FullName+sCopyErrorFileFullNameCloser+ToOneLine(exn.ToString()));
+				else if (exn.ToString().ToLower().IndexOf("being used by another process")>=0) {
+					alCopyError.Add("File is being used [ok to ignore if no programs open since then only system files are in use]"+sCopyErrorFileFullNameOpener+SrcFile_FullName+sCopyErrorFileFullNameCloser+ToOneLine(exn.ToString()));
 				}
-				else if (exn.ToString().ToLower().IndexOf("system.io.directorynotfoundexception")>-1) {
+				else if (exn.ToString().ToLower().IndexOf("unauthorizedaccessexception")>=0) {
+					alCopyError.Add("No permission to overwrite [this should never happen]"+sCopyErrorFileFullNameOpener+SrcFile_FullName+sCopyErrorFileFullNameCloser+ToOneLine(exn.ToString()));
+				}
+				else if (exn.ToString().ToLower().IndexOf("too long")>0) {
+					alCopyError.Add("Filename is too long for"+sCopyErrorFileFullNameOpener+SrcFile_FullName+sCopyErrorFileFullNameCloser+ToOneLine(exn.ToString()));
+				}
+				else if (exn.ToString().ToLower().IndexOf("system.io.directorynotfoundexception")>=0) {
 					alCopyError.Add("Recreate source folder failed"+sCopyErrorFileFullNameOpener+SrcFile_FullName+sCopyErrorFileFullNameCloser+ToOneLine(exn.ToString()));
 				}
-				else if (exn.ToString().ToLower().IndexOf("not enough space")>-2) {
+				else if (exn.ToString().ToLower().IndexOf("not enough space")>=0) {
 					//NOTE: can be unable to copy file even if disk not technically full
 					bDiskFullLastRun=true;//bFileTooBigToFitLastRun=true;
 					alCopyError.Add("Not enough space for"+sCopyErrorFileFullNameOpener+SrcFile_FullName+sCopyErrorFileFullNameCloser+ToOneLine(exn.ToString()));
@@ -951,7 +963,7 @@ namespace JakeGustafson {
 						//	fisec.SetOwner(idref);
 						//}
 						try {
-							if ( (fiNow.Attributes & FileAttributes.ReadOnly) == FileAttributes.ReadOnly ) 
+							if (fiNow.IsReadOnly) //if ( (fiNow.Attributes & FileAttributes.ReadOnly) == FileAttributes.ReadOnly )
 								fiNow.Attributes=FileAttributes.Normal;
 						}
 						catch (Exception exn) {
