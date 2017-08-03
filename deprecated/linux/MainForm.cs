@@ -26,7 +26,7 @@ namespace ExpertMultimedia {
 	/// Description of MainForm.
 	/// </summary>
 	public partial class MainForm : Form {
-		public static string sMyNameAndVersion="Backup GoNow 2017-04-14";
+		public static string sMyNameAndVersion="Backup GoNow 2015-07-31";
 		public static string sMyName="Backup GoNow";
 		//ArrayList alPseudoRootsNow=null;
 		//ArrayList alSelectableDrives=null;
@@ -484,23 +484,11 @@ namespace ExpertMultimedia {
 		}//end BackupFolder recursively
 		string get_retroactive_timed_folder_partialpath_from_UTC(DateTime thisDT_MUST_BE_UTC) {
 			//NOTE: must use DOUBLE dirsep, since escape sequences are allowed in datetime.ToString
-			bool localize_enable = false;
-			if (localize_enable)
-				return Common.sDirSep + thisDT_MUST_BE_UTC.ToString("yyyy",System.Globalization.CultureInfo.GetCultureInfo("en-US"))
-					+ Common.sDirSep + thisDT_MUST_BE_UTC.ToString("MM",System.Globalization.CultureInfo.GetCultureInfo("en-US"))
-					+ Common.sDirSep + thisDT_MUST_BE_UTC.ToString("dd",System.Globalization.CultureInfo.GetCultureInfo("en-US"))
-					+ Common.sDirSep + thisDT_MUST_BE_UTC.ToString("HH",System.Globalization.CultureInfo.GetCultureInfo("en-US"))
-					+ thisDT_MUST_BE_UTC.ToString("mm",System.Globalization.CultureInfo.GetCultureInfo("en-US"))
-					+ thisDT_MUST_BE_UTC.ToString("ss",System.Globalization.CultureInfo.GetCultureInfo("en-US"))
-					+ Common.sDirSep;
-			return Common.sDirSep + thisDT_MUST_BE_UTC.ToString("yyyy")
-				+ Common.sDirSep + thisDT_MUST_BE_UTC.ToString("MM")
-				+ Common.sDirSep + thisDT_MUST_BE_UTC.ToString("dd")
-				+ Common.sDirSep + thisDT_MUST_BE_UTC.ToString("HH")
-				+ thisDT_MUST_BE_UTC.ToString("mm")
-				+ thisDT_MUST_BE_UTC.ToString("ss")
+			return Common.sDirSep + thisDT_MUST_BE_UTC.ToString("yyyy",System.Globalization.CultureInfo.GetCultureInfo("en-US"))
+				+ Common.sDirSep + thisDT_MUST_BE_UTC.ToString("MM",System.Globalization.CultureInfo.GetCultureInfo("en-US"))
+				+ Common.sDirSep + thisDT_MUST_BE_UTC.ToString("dd",System.Globalization.CultureInfo.GetCultureInfo("en-US"))
+				+ Common.sDirSep + thisDT_MUST_BE_UTC.ToString("HHmmss",System.Globalization.CultureInfo.GetCultureInfo("en-US"))
 				+ Common.sDirSep;
-			
 		}
 		bool RunScript(string sFileX) {
 			scriptFileNameStack.Push(sFileX);
@@ -2399,19 +2387,14 @@ namespace ExpertMultimedia {
 				}
 				int iMessages=0;
 				if (!bGood) {
-					lbOut.Items.Add("Some files may be system files and are not required to be backed up, however RunScript failed.");
+					lbOut.Items.Add("Some files may be system files and are not required to be backed up.  RunScript failed.");
 					iMessages++;
 					Application.DoEvents();
 					WriteLastRunLog();
 					menuitemHelp_ViewOutputOfLastRun.Enabled=true;
 					FileInfo fiSaved=new FileInfo(LastRunLog_FullName);
 					//DialogResult dlgresultNow=MessageBox.Show("Finished.\n\nLog ("+iMessages.ToString()+" message(s)) saved to \""+fiSaved.FullName+"\"\n\n  Do you wish to to review the list?","Result", MessageBoxButtons.YesNo);
-					MessageBox.Show("Finished.\n\nLog ("+iMessages.ToString()+" messages(s)) about certain files are listed near the end of \""+fiSaved.FullName+"\"",sMyName);//DialogResult dlg=MessageBox.Show(sFileList+"\n\n  Do you wish to to review the list (press cancel to exit)?","Result", MessageBoxButtons.OKCancel);
-					try {
-						System.Diagnostics.Process.Start(fiSaved.FullName);
-					}
-					catch {}					
-					//asdf
+					MessageBox.Show("Finished.\n\nLog ("+iMessages.ToString()+" message(s)) saved to \""+fiSaved.FullName+"\"",sMyName);//DialogResult dlg=MessageBox.Show(sFileList+"\n\n  Do you wish to to review the list (press cancel to exit)?","Result", MessageBoxButtons.OKCancel);
 					//if (dlgresultNow==DialogResult.Yes) {
 					//	System.Diagnostics.Process.Start(sLastRunLog);
 					//}
