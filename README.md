@@ -12,6 +12,9 @@ A backup program that anyone can use the first time, with good defaults!
 * If the program fails to load, client needs to download the runtime (such as .NET framework or Mono)
 
 ## Changes
+* (2016-02-21) places files in "tl" folder if file path is too long to backup properly otherwise (and records full source path for use during restore) 
+* (2016-02-21) single "launcher" file can be placed anywhere and generates any files it needs in your user profile
+* (2015-07-30) Changed default profile -- main.ini: no longer use DestSubFolder option, no longer exclude D:, exclude some standard names of recovery drives (see Developer Notes section below) in order to not use them as destinations; script.txt: add only specific APPDATA and LOCALAPPDATA
 * (2012-07-12) Fixed problem where showing incorrect error message due to comparing index >-2 instead of >-1 (added new messages for "being used by another process" & "UnauthorizedAccessException" instead of telling user that the filename was too long in those cases)
 * (2012-07-12) only change lByteCountTotalActuallyAdded if Copy succeeded
 * (2011-02-22) Moved general file handling and drive management methods to Common.cs and LocInfo.cs, and now these files are references to those from the ForwardFileSync project.
@@ -43,6 +46,7 @@ A backup program that anyone can use the first time, with good defaults!
 * (2007-01-25) prevent pushing button twice from crashing program
 
 ## Known Issues
+* There is no restore option. All restores must be done manually, including files in the tl folder which were too long to backup using the same folder structure.
 * Make sure AddFile IGNORES all filters (folder AND file filters!)
 * InternalIndexOfPseudoRootWhereFolderStartsWithItsRoot and other drive handling methods should be called with case senstive set to TRUE if sDirSep is '/'.
 * Change program menu icon (on menu bar) to custom icon (instead of compiler logo)
@@ -90,4 +94,19 @@ A backup program that anyone can use the first time, with good defaults!
 ## Developer Notes
 * This program requires Microsoft® .NET® framework 2.0 compiler or later, or Mono 2.0 compiler or later to compile.
 * Any files in folder named "share" may need to be placed in the working directory of the program
-
+* main.ini should always exclude the following standard labels of recovery drives:
+	```
+	#next line is for Windows 8 (R) default C: drive label on computers such as Lenovo (R) laptop circa 2014
+	ExcludeDest:Windows8_OS
+	#next line is Lenovo(R) recovery partition
+	ExcludeDest:LENOVO
+	ExcludeDest:HP_RECOVERY
+	ExcludeDest:RECOVERY
+	#next line is HP(R) C: drive circa 2006 such as Vista(R)
+	ExcludeDest:OS
+	#next line is HP(R) factory image circa 2006 such as Vista(R)
+	ExcludeDest:FACTORY_IMAGE
+	#next line is Dell(R) recovery
+	ExcludeDest:Recovery
+	ExcludeDest:DELLUTILITY
+	```

@@ -9,7 +9,7 @@
 using System;
 using System.Windows.Forms;
 
-namespace JakeGustafson {
+namespace ExpertMultimedia {
 	/// <summary>
 	/// Description of MyCallBack.
 	/// </summary>
