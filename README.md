@@ -1,6 +1,11 @@
 # Backup GoNow
 A backup program that anyone can use the first time, with good defaults!
 
+## Key Features
+* Add more files and folders to the backup list using buttons!
+* Settings automatically load when the program is started, and save whenever changed.
+* Single "launcher" file can be placed anywhere (and generates any files it needs in your user profile).
+
 ## License
 * Only use and copy in accordance with the LICENSE file.
 * Author: Jacob Gustafson ( http://github.com/expertmm http://www.expertmultimedia.com )

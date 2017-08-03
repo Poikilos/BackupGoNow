@@ -1,0 +1,31 @@
+# 2017-08-03 Moving to Version Control
+Migrating from manual backups to GitHub commits
+
+## Changes to all versions:
+* Made format and name of README.md files uniform and include known changes that were not previously noted
+* Deleted profiles, computer-specific data, old batch installer, and other extra files from bin (left some of these things in ownCloud)
+* Moved deprecated files to deprecated folder when deprecated
+	* moved linux folder (a collection of old scripts not working recently) in root of each version to deprecated
+* Deleted obj folder in root of each version
+* renamed bin to bin-redist since bin is default build location and therefore is in gitignore\
+* made "Backup GoNow.requires-flister-and-chunker.zip" into a commit: 2010-02-10 (added profiles)
+* retroactively added known changes from later README files back into README of version 2010-02-10 and onward
+* retroactively changed license of every version to GPL v3
+* for each version:
+rm "Backup GoNow in bin.*lnk"
+rm "Backup GoNow.requires-flister-and-chunker.zip"
+rm "clean cache - Shortcut.*lnk"
+rm "FolderLister src.*lnk"
+#(copy PDF to owncloud then)
+rm "LRZIP OSS 2-pass nextgen compression - SourceForge.net_ 7-Zip_ Top.pdf"
+rm "install.bat in redistributable.*lnk"
+rm "UniWinForms src.*lnk"
+rm "install*.bat"
+rm "redist*.bat"
+rm ./share/profiles/BackupGoNowDefault/summary.log
+* change "Copyright (c)" to "Authors: " in all versions of README
+* accumulate changes to README.md file of each version
+* accumulate release notes that were in install.bat and place in README.md file of each related version
+	* first changelog was found in 2012-05-21; however, 2017-04-14 readme was missing some stuff from that previous one so has now been added to the later one; versions between those had no changes (except 2017-07-12, so known Changes have now been noted
+* "YAML-like" should be excluded from the summary until profiles version
+* add key features section to README
