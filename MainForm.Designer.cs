@@ -1,4 +1,4 @@
-﻿/*
+/*
  *  Created by SharpDevelop (To change this template use Tools | Options | Coding | Edit Standard Headers).
  * User: Jake Gustafson (Owner)
  * Date: 1/25/2007
@@ -69,13 +69,13 @@ namespace GoNowBackup
 			// MainForm
 			// 
 			this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 17F);
-			this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+			//this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
 			this.ClientSize = new System.Drawing.Size(464, 353);
 			this.Controls.Add(this.rtbOutput);
 			this.Controls.Add(this.tbStatus);
 			this.Name = "MainForm";
 			this.Text = "GoNowBackup";
-			this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.MainFormFormClosed);
+			//this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.MainFormFormClosed);
 			this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.MainFormFormClosing);
 			this.Load += new System.EventHandler(this.MainFormLoad);
 			this.ResumeLayout(false);

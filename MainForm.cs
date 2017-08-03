@@ -7,7 +7,7 @@
  */
 
 using System;
-using System.Collections.Generic;
+//using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
 using System.IO;
@@ -64,7 +64,7 @@ namespace GoNowBackup {
 		[STAThread]
 		public static void Main(string[] args) {
 			Application.EnableVisualStyles();
-			Application.SetCompatibleTextRenderingDefault(false);
+			//TODO:?fix? Application.SetCompatibleTextRenderingDefault(false);
 			Application.Run(new MainForm());
 		}
 		
@@ -487,12 +487,12 @@ namespace GoNowBackup {
 			//Go();
 		}
 		
-		void MainFormFormClosing(object sender, System.Windows.Forms.FormClosingEventArgs e)
+		void MainFormFormClosing(object sender, System.EventArgs e)//System.Windows.Forms.FormClosingEventArgs e)
 		{
 			bContinue=false;
 		}
 		
-		void MainFormFormClosed(object sender, System.Windows.Forms.FormClosedEventArgs e)
+		void MainFormFormClosed(object sender, System.EventArgs e)//System.Windows.Forms.FormClosedEventArgs e)
 		{
 		}
 		bool bDone=false;

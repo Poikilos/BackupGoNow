@@ -27,13 +27,15 @@
 
 #Type your commands below or uncomment the appropriate lines above.
 
-<Save to Drive>MEMOREX
-<Save to Folder>.
-<Save to File>NetBoxBackup
+<Save to Drive>FLASH1
+<Save to Folder>Backup
+<Save to File>testGoNowBackup
 <Command>update
-<Folder>C:\Documents and Settings\Owner\Application Data\Thunderbird
-<File>C:\Documents and Settings\Owner\Application Data\Mozilla\Firefox\Profiles\358yn2ps.default\bookmarks.html
-<Folder>C:\Documents and Settings\Owner\My Documents
+<Folder>/home/Owner/Projects/GoNowBackup
+
+#<Folder>C:\Documents and Settings\Owner\Application Data\Thunderbird
+#<File>C:\Documents and Settings\Owner\Application Data\Mozilla\Firefox\Profiles\358yn2ps.default\bookmarks.html
+#<Folder>C:\Documents and Settings\Owner\My Documents
 
 
 

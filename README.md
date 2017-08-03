@@ -12,10 +12,13 @@ A backup program that anyone can use the first time, with good defaults!
 * If the program fails to load, client needs to download the runtime (such as .NET framework or Mono)
 
 ## Changes
+* (2007-07-25) changed default settings to also backup self on linux
+* (2007-07-25) updated MainFormFormClosed and MainFormFormClosing to use System.EventArgs
+* (2007-07-25) commented broken line in main: Application.SetCompatibleTextRenderingDefault(false);
 * (2007-01-25) prevent pushing button twice from crashing program
 
 ## Known Issues
-
+* ? fix commented line in main: Application.SetCompatibleTextRenderingDefault(false);
 
 ## Developer Notes
 * This program requires Microsoft® .NET® framework 2.0 compiler or later, or Mono 2.0 compiler or later to compile.
