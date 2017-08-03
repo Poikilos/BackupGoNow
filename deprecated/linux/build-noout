@@ -1,0 +1,8 @@
+#!/bin/sh
+cd "/home/owner/Projects/Backup GoNow"
+rm err.txt
+gmcs /out:Backup\ GoNow.exe AssemblyInfo.cs Chunker.cs FolderLister.cs MainForm.cs MainForm.Designer.cs Program.cs /r:System.Drawing /r:System.Windows.Forms
+mkdir bin
+mv ./bin/Backup\ GoNow.exe ./bin/Backup\ GoNow.exe.wip
+mv Backup\ GoNow.exe ./bin/
+outputinspector&

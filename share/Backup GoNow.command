@@ -1,3 +1,10 @@
 #!/bin/sh
-cd "/Users/marieg/Projects/Backup GoNow/bin"
-mono "Backup GoNow.exe"
+cd ~
+cd Projects
+cd Backup\ GoNow
+cd bin
+echo Please wait while loading Backup GoNow...
+mono Backup\ GoNow.exe
+echo You have exited Backup GoNow.
+cd ..
+

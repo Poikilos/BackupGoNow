@@ -1,0 +1,26 @@
+#!/bin/sh
+#sVer=$(date +%Y%m%d-%k.%M)
+
+sVer=$(date +%Y-%m-%d)
+echo "1.0-$sVer" > bin/1.Version.txt
+sFolder="Backup GoNow"
+sRelease="BackupGoNow"
+echo "Publishing revision $sVer"
+cd ~/Projects
+rm -Rvf "$sFolder-$sVer"
+mkdir "$sFolder-$sVer"
+cp -R --no-dereference "$sFolder/*" "$sFolder-$sVer/"
+
+cd "$sFolder-$sVer"
+find . -regex .*~ | xargs rm
+cd ..
+
+cp -f ~/Projects/UniWinForms/src/Chunker.cs "$sFolder-$sVer/"
+cp -f ~/Projects/RetroEngine/src/RReporting.cs "$sFolder-$sVer/"
+cp -f ~/Projects/FolderLister/src/FolderLister.cs "$sFolder-$sVer/"
+zip -r $sRelease-$sVer.zip "$sFolder-$sVer/"
+rm -Rvf "$sFolder-$sVer"
+mkdir ~/Documents/www/expertmultimedia/releases
+mv -f $sRelease-$sVer.zip ~/Documents/www/expertmultimedia/releases/$sRelease/
+echo
+echo "Finished."

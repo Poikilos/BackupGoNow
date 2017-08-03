@@ -13,22 +13,22 @@ using System.Collections;
 using System.Drawing;
 using System.Windows.Forms;
 using System.IO;
-using System.Threading;
+//using System.Threading;
 using System.Reflection;
 using System.Security.AccessControl;
 using System.Security.Principal;
 //using System.Management;//for getting free disk space (ManagementObject)
 //using System.Text;//StringBuilder etc
 
-//TODO:Fix margins correctly
-
-namespace OrangejuiceElectronica {
+namespace JakeGustafson {
 	/// <summary>
 	/// Description of MainForm.
 	/// </summary>
 	public partial class MainForm : Form {
-		public static string sMyNameAndVersion="Backup GoNow 2009-09-09";
+		public static string sMyNameAndVersion="Backup GoNow 2011-02-21";
 		public static string sMyName="Backup GoNow";
+		ArrayList alPseudoRootsNow=null;
+		ArrayList alSelectableDrives=null;
 		//TODO: Option to remove files from the backup drive that aren't in the backup script
 		public static int iLine=0;
 		public static int iListedLines=0;
@@ -37,7 +37,6 @@ namespace OrangejuiceElectronica {
 		public static bool bLoadedProfile=false;
 		public static int iMaxCopyErrorsToShow=10;
 		public static bool bUserSaysStayOpen=false;
-		public static char[] carrBreakAfter=new char[] {'-',':','/','\\'};
 		public static string sCopyErrorFileFullNameCloser=" -- ";
 		public static string sCopyErrorFileFullNameOpener=": ";
 		public static bool bRemoveTrivialMessagesAfterScript=true;
@@ -50,7 +49,7 @@ namespace OrangejuiceElectronica {
 		public static string BackupProfileFolder_FullName="";
 		public static bool bDeleteFilesNotOnSource_AfterCopyingEachFolder=true;
 		public static bool bDeleteFilesNotOnSource_BeforeBackup=false;
-		public static bool bRealTime=true;
+		//public static bool bRealTime=true;
 		public static System.Windows.Forms.TextBox tbStatusNow=null;
 		public static int iDepth=0;
 		public static int iFilesProcessed=0;
@@ -61,6 +60,9 @@ namespace OrangejuiceElectronica {
 		public static string StartupFile_Name="startup.ini";
 		public static string MainFile_Name="main.ini";
 		public static string LogFile_Name="summary.log";
+		public static readonly string OutputFile_Name="Backup GoNow output.txt";
+		public static readonly string sLastRunLog="1.LastRun Output.txt";
+		public static string OutputFile_FullName="";//fixed in MainFormLoad
 		public static MainForm mainformNow=null;
 		public static ListBox lbOutNow=null;
 		public static ulong ulByteCountTotalProcessed_LastRun=0;
@@ -68,15 +70,17 @@ namespace OrangejuiceElectronica {
 		public static int iLBBottomMargin=0;
 		public static int iTickLastRefresh=Environment.TickCount;
 		public static int iTicksRefreshInterval=2000;
-		private static FolderLister flisterNow=null;
-		private static bool bBusyCopying=false;
+		//private static FolderLister flisterNow=null;
+		//private static bool bBusyCopying=false;
 		private static bool bExitIfNoUsableDrivesFound=false;
 		private static bool bAlwaysStayOpen=false;
 		private static bool bUserCancelledLastRun=false;
 		private static bool bCopyErrorLastRun=false;
 		private static bool bDiskFullLastRun=false;
+		//private static bool iFilesTooBigToFit=0;
 		private static int iSkipped=0;
-		private static ArrayList alSkipped=new ArrayList();
+		private static ArrayList alSkippedDueToException=new ArrayList(); //formerly alSkipped
+		//private static ArrayList CurrentFolder_alSkippedDueToException=new ArrayList();
 		private static ArrayList alCopyError=new ArrayList();
 		private static string sCP="";//fixed later
 		private static string sMkdir="";//fixed later
@@ -91,26 +95,12 @@ namespace OrangejuiceElectronica {
 		private static ulong ulByteCountTotalProcessed=0;
 		private static ulong ulByteCountTotalActuallyCopied=0;
 		private static long lByteCountTotalActuallyAdded=0;
-		private static string sParticipleNow="";
-		private static bool bMegaDebug=false;
-		private static string sParticiple {
-			set { sParticipleNow=value; if (bMegaDebug) Console.Error.WriteLine(value!=null?value:"(null debug info)"); }
-			get { return sParticipleNow; }
-		}
 		
-		public static ArrayList alInvalidDrives=new ArrayList();
-		public static ArrayList alExtraDestinations=new ArrayList();
 		public static ArrayList alFilesBackedUpManually=new ArrayList();
-		public static int iValidDrivesFound=0;
-		public static int iDestinations=0;
 		private static long ulByteCountDestTotalSize=0;
 		private static long ulByteCountDestAvailableFreeSpace=0;
 		private static string DestFolder_FullName="";
-		private static string DestSuffixOnlyThenSlash="";
-		
-		private const int MaxLocations=256;
-		private static int iLocations=0;
-		private static LocInfo[] locinfoarr=null;//see MainForm constructor
+		private static string DestSubfolderRelNameThenSlash="";
 		
 		private static ArrayList alFolderFullName=new ArrayList();
 		private static ArrayList alFolderLabel=new ArrayList();
@@ -118,7 +108,7 @@ namespace OrangejuiceElectronica {
 		
 		//private static string GetDestDriveRoot() { //="";//drive or folder
 		//	try {
-		//		return (driveinfoarrNow!=null&&iDriveDest>-1&&iDriveDest<driveinfoarrNow.Length) ? locinfoarr[DestFolderIndexNow].RootDirectory.FullName : "";
+		//		return (driveinfoarrSelectableDrive!=null&&iDriveDest>-1&&iDriveDest<driveinfoarrSelectableDrive.Length) ? locinfoarrPseudoRoot[DestFolderIndexNow].RootDirectory.FullName : "";
 		//	}
 		//	catch (Exception exn) {
 		//		string sMsg="Error getting drive root folder: "+ToOneLine(exn);
@@ -127,66 +117,34 @@ namespace OrangejuiceElectronica {
 		//	}
 		//	return "";
 		//}
-		public static int FolderDriveIndex(string FolderNow) {
-			int iReturn=-1;
-			if (FolderNow!=null&&FolderNow!=""&&driveinfoarrNow!=null) {
-				FolderNow=LocalFolderThenSlash(FolderNow);
-				for (int i=driveinfoarrNow.Length-1; i>=0; i--) {//start at end in case subfolder is a mounted volume
-					if (driveinfoarrNow[i]!=null) {
-						if (FolderNow.StartsWith(LocalFolderThenSlash(driveinfoarrNow[i].RootDirectory.FullName))) {
-							iReturn=i;
-							break;
-						}
-					}
-				}
-			}
-			return iReturn;
-		}//end FolderToDriveIndex
-		public static int FolderLocationIndex(string FolderNow) {
-			int iReturn=-1;
-			if (FolderNow!=null&&FolderNow!=""&&locinfoarr!=null) {
-				FolderNow=LocalFolderThenSlash(FolderNow);
-				for (int i=locinfoarr.Length-1; i>=0; i--) {//start at end in case subfolder is a mounted volume
-					if (locinfoarr[i]!=null) {
-						if (FolderNow.StartsWith(LocalFolderThenSlash(locinfoarr[i].DriveRoot_FullNameThenSlash))) {//TODO: change this?
-							iReturn=i;
-							break;
-						}
-					}
-				}
-			}
-			return iReturn;
-		}//end FolderLocationIndex
-		public static bool AddLocation(string FolderNow) {
+		bool SaveOutputToTextFile() {
 			bool bGood=false;
+			StreamWriter streamOut=null;
 			try {
-				if (iLocations<locinfoarr.Length) {
-					locinfoarr[iLocations]=new LocInfo();
-					locinfoarr[iLocations].DriveRoot_FullNameThenSlash=LocalFolderThenSlash(FolderNow);
-					int iDrive=FolderDriveIndex(FolderNow);
-					if (iDrive>-1) {
-						locinfoarr[iLocations].TotalSize=driveinfoarrNow[iDrive].TotalSize;
-						locinfoarr[iLocations].AvailableFreeSpace=driveinfoarrNow[iDrive].AvailableFreeSpace;
-					}
-					iLocations++;
+				streamOut=new StreamWriter(OutputFile_FullName);
+				DateTime dtNow=DateTime.Now;
+				streamOut.WriteLine("# "+dtNow.Year.ToString()+"-"+dtNow.Month+"-"+dtNow.Day+" "+dtNow.Hour+":"+dtNow.Minute+":"+dtNow.Second);
+				for (int i=0; i<this.lbOut.Items.Count; i++) {
+					streamOut.WriteLine(this.lbOut.Items[i].ToString());
 				}
+				bGood=true;
+				streamOut.Close();
 			}
 			catch (Exception exn) {
-				ShowExn(exn,"adding location","AddLocation");
+				bGood=false;
 			}
 			return bGood;
-		}//AddLocation
+		}//end SaveOutputToTextFile
+
 		public static string sWasUpToDate="Was Up to Date";
 		public static Brush brushItemOther = Brushes.Black;
 		public static SolidBrush brushItemWasUpToDate = new SolidBrush(Color.FromArgb(192, 192, 192)); //Brushes.Gray;
-		public static DriveInfo[] driveinfoarrNow=null;
 		//public static int iDriveDest=0;
 		//public static string sDestRootThenSlash="";
 		public static bool bStartedCopyingAnyFiles=false;
 		//private static string sDestPathSlash {
-		//	get { return sDestRootThenSlash+DestSuffixOnlyThenSlash; }
+		//	get { return sDestRootThenSlash+DestSubfolderRelNameThenSlash; }
 		//}
-		private static string sDirSep=char.ToString(Path.DirectorySeparatorChar);
 		public MainForm() {
 			//
 			// The InitializeComponent() call is required for Windows Forms designer support.
@@ -202,22 +160,22 @@ namespace OrangejuiceElectronica {
 			
 			if (File.Exists(RetryBatchFile_Name)) {
 				try {
-					MainForm.sParticiple="generating retry batch \".old\" backup filename";
+					Common.sParticiple="generating retry batch \".old\" backup filename";
 					string sOldBat=RetryBatchFile_Name+".old";
-					MainForm.sParticiple="deleting old retry batch";
+					Common.sParticiple="deleting old retry batch";
 					if (File.Exists(sOldBat)) {
 						try {
 							File.Delete(sOldBat);
 						}
 						catch (Exception exn) {
-							ShowExn(exn,sParticiple);
+							Common.ShowExn(exn,Common.sParticiple);
 						}
 					}
-					MainForm.sParticiple="moving previous retry batch to \""+sOldBat+"\"";
+					Common.sParticiple="moving previous retry batch to \""+sOldBat+"\"";
 					File.Move(RetryBatchFile_Name,sOldBat);
 				}
 				catch (Exception exn) {
-					ShowExn(exn,sParticiple);
+					Common.ShowExn(exn,Common.sParticiple);
 				}
 			}
 			//The file will be appended for each write for safety (see WriteRetryLineIfCreatingRetryBatch)
@@ -238,7 +196,7 @@ namespace OrangejuiceElectronica {
 				//Directory.SetCurrentDirectory(ExecutableFolder_FullName);
 			}
 			catch (Exception exn) {
-				ShowExn(exn,"changing to directory of executable","MainForm constructor");
+				Common.ShowExn(exn,"changing to directory of executable","MainForm constructor");
 			}
 			tbStatusNow=this.tbStatus;
 			//string sMyPath = Assembly.GetExecutingAssembly().Location;
@@ -247,10 +205,6 @@ namespace OrangejuiceElectronica {
 			//	sMyPath=sMyPath.Substring(0,iLastSlash);
 			//	Directory.SetCurrentDirectory(sMyPath);
 			//}
-			locinfoarr=new LocInfo[MaxLocations];
-			for (int i=0; i<MaxLocations; i++) {
-				locinfoarr[i]=null;
-			}
 		}//end MainForm constructor
 		private void WriteRetryLineIfCreatingRetryBatch(string sLine) {
 			if (bWriteBatchForFailedFiles) {
@@ -262,7 +216,7 @@ namespace OrangejuiceElectronica {
 					}
 				}
 				catch (Exception exn) {
-					ShowExn(exn,"adding batch retry line");
+					Common.ShowExn(exn,"adding batch retry line");
 				}
 			}
 		}
@@ -277,10 +231,13 @@ namespace OrangejuiceElectronica {
 			try {
 				//if (bTestOnly) Output("Getting ready to copy "+(diBase.Size/1024/1024).ToString()+"MB...");			
 				foreach (DirectoryInfo diNow in diBase.GetDirectories()) {
-					ReconstructPathOnBackup(diNow.FullName);
-					if (!bUserCancelledLastRun&&!bDiskFullLastRun
-						&&flisterNow.UseFolder(diNow))
-						BackupFolder(diNow);
+					if (bUserCancelledLastRun) break;
+					if (!Common.IsExcludedFolder(diNow)) {
+						ReconstructPathOnBackup(diNow.FullName);
+						if (!bUserCancelledLastRun&&!bDiskFullLastRun
+							&&!Common.IsExcludedFolder(diNow))//&&flisterNow.UseFolder(diNow))
+							BackupFolder(diNow);
+					}
 				}
 			}
 			catch {} //no subfolders
@@ -302,20 +259,24 @@ namespace OrangejuiceElectronica {
 						bSourceListingWasCancelled=true;
 						break;
 					}
-					if (flisterNow.UseFile(diBase,fiNow)) {
+					if (!Common.IsExcludedFile(diBase,fiNow)) {//if (flisterNow.UseFile(diBase,fiNow)) {
 						//barrUsedSrcFile[iSrcNow]=true;
+						//lbOut.Items.Add(fiNow.FullName+" not excluded by "+Common.MasksToCSV());//debug only
 						BackupFile(fiNow.FullName,true);
 						if (bTestOnly) Output("  ("+fiNow.FullName+")",true);
 						//if (bDeleteFilesNotOnSource_AfterCopyingEachFolder) alActuallyUsedSrcFiles.Add(fiNow.Name);
 						//iSrcNow++;
 					}
+					if (bUserCancelledLastRun) break;
 				}//end foreach file
 				if (bDeleteFilesNotOnSource_AfterCopyingEachFolder&&!bSourceListingWasCancelled) {
 					DirectoryInfo diTarget=new DirectoryInfo(ReconstructedBackupPath(diBase.FullName));
 					bool bFoundOnSource=false;
 					foreach (DirectoryInfo diDest in diTarget.GetDirectories()) {
 						bFoundOnSource=false;
+						if (bUserCancelledLastRun) break;
 						foreach (DirectoryInfo diSource in diarrSrc) {
+							if (bUserCancelledLastRun) break;
 							if (diDest.Name==diSource.Name) {
 								bFoundOnSource=true;
 								break;
@@ -330,7 +291,9 @@ namespace OrangejuiceElectronica {
 					foreach (FileInfo fiDest in diTarget.GetFiles()) {
 						bFoundOnSource=false;
 						//iSrcNow=0;
+						if (bUserCancelledLastRun) break;
 						foreach (FileInfo fiSource in fiarrSrc) {
+							if (bUserCancelledLastRun) break;
 							if (fiDest.Name==fiSource.Name) {
 								bFoundOnSource=true;
 								break;
@@ -360,19 +323,18 @@ namespace OrangejuiceElectronica {
 							lByteCountTotalActuallyAdded-=fiDest.Length;
 						}
 						if (bUserCancelledLastRun||bDiskFullLastRun) break; //note: do NOT stop if Copy Error only
-					}
-				}
+					}//end for each file to destination (to check if should be deleted)
+				}//end if delete files not on source
 			}
 			catch {} //no files
 			iDepth--;
 		}//end BackupFolder recursively
-		public static readonly string SlashWildSlash=sDirSep+"*"+sDirSep;
 		bool RunScript(string sFileX) {
-			if (alSkipped!=null||alCopyError!=null) { //TODO: recheck logic.  This used to be done below (see identical commented lines)
-				if (alSkipped.Count!=0||alCopyError.Count>0) {
+			if (alSkippedDueToException!=null||alCopyError!=null) { //TODO: recheck logic.  This used to be done below (see identical commented lines)
+				if (alSkippedDueToException.Count!=0||alCopyError.Count>0) {
 					Output("Clearing error cache...",true);
 				}
-				alSkipped.Clear();
+				alSkippedDueToException.Clear();
 				alCopyError.Clear();
 			}
 			int iFilesProcessedPrev=iFilesProcessed;
@@ -381,8 +343,8 @@ namespace OrangejuiceElectronica {
 			StreamReader streamIn=null;
 			iCouldNotFinish=0;
 			try {
-				if (alSkipped!=null) alSkipped.Clear();
-				else alSkipped=new ArrayList();
+				if (alSkippedDueToException!=null) alSkippedDueToException.Clear();
+				else alSkippedDueToException=new ArrayList();
 				if (!File.Exists(sFileX)) {
 					Console.Error.WriteLine("File does not exist: \"" + sFileX + "\"!");
 				}
@@ -391,22 +353,27 @@ namespace OrangejuiceElectronica {
 				}
 				streamIn=new StreamReader(sFileX);
 				string sLine;
-				flisterNow=new FolderLister();
+				//flisterNow=new FolderLister();
 				//flisterNow.MinimumFileSize=1;//1byte (trying to avoid bad symlinks here)
-				flisterNow.bShowFolders=true;
+				//flisterNow.bShowFolders=true;
 				iLine=0;
 				iListedLines=0;
 				while ( (sLine=streamIn.ReadLine()) != null ) {
+					if (bUserCancelledLastRun) {
+						bUserCancelledLastRun=true;
+						break;
+					}
 					if (sLine.StartsWith("#")) Console.Error.WriteLine("\t"+sLine);
 					RunScriptLine(sLine);
 					iLine++;
 					if (bDiskFullLastRun||bUserCancelledLastRun) break; //do NOT stop if Copy Error only
 				}//end while lines in script
 				//if (bTestOnly) {
-				if (alSkipped.Count>0) {
+				if (alSkippedDueToException.Count>0) {
 					Output("");
-					Output("Could not list "+alSkipped.Count.ToString()+":",true);
-					foreach (string sSkippedNow in alSkipped) {
+					Output("Could not list "+alSkippedDueToException.Count.ToString()+":",true);
+					foreach (string sSkippedNow in alSkippedDueToException) {
+						if (bUserCancelledLastRun) break;
 						Output("(could not list) "+sSkippedNow);
 					}
 				}
@@ -414,18 +381,24 @@ namespace OrangejuiceElectronica {
 					Output("");
 					Output("Could not copy "+alCopyError.Count.ToString(),true);
 					foreach (string sCopyErrorNow in alCopyError) {
+						if (bUserCancelledLastRun) break;
 						Output("(could not copy) "+sCopyErrorNow);
 					}
 					Output("");
 				}
 				iFilesProcessed_ThisScript=iFilesProcessed-iFilesProcessedPrev;
-				if (iListedLines+alSkipped.Count+alCopyError.Count+iFilesProcessed_ThisScript>0) Output("Finished reading "+sFileX+" (listed: "+iListedLines+"; could not list: "+alSkipped.Count.ToString()+"; copy errors: "+alCopyError.Count.ToString()+"; files listed:"+iFilesProcessed_ThisScript.ToString()+").",true);
-				else Output("Finished reading "+sFileX+" (commands processed)");
-				//if (alSkipped!=null||alCopyError!=null) {
-				//	if (alSkipped.Count!=0||alCopyError.Count>0) {
+				if (!bUserCancelledLastRun) {
+					if (iListedLines+alSkippedDueToException.Count+alCopyError.Count+iFilesProcessed_ThisScript>0) {
+						Output("Finished reading "+sFileX+" (listed: "+iListedLines+"; could not list: "+alSkippedDueToException.Count.ToString()+"; copy errors: "+alCopyError.Count.ToString()+"; files listed:"+iFilesProcessed_ThisScript.ToString()+").",true);
+					}
+					else Output("Finished reading "+sFileX+" (commands processed)");
+				}
+				else Output("Script was cancelled by user.");
+				//if (alSkippedDueToException!=null||alCopyError!=null) {
+				//	if (alSkippedDueToException.Count!=0||alCopyError.Count>0) {
 				//		Output("Clearing error cache...",true);
 				//	}
-				//	alSkipped.Clear();
+				//	alSkippedDueToException.Clear();
 				//	alCopyError.Clear();
 				//}
 				bGood=true;
@@ -439,9 +412,9 @@ namespace OrangejuiceElectronica {
 				if (File.Exists(sFileX)) {
 					Console.Error.WriteLine("Reading \"" + sFileX + "\"..." + ((iCouldNotFinish > 0) ? (iCouldNotFinish.ToString() + " lines FAILED!") : ("FAILED!")));
 				}
-				string sParticiple = "running " + SafeString(sFileX,true) + ":";
-				if (bTestOnly) MessageBox.Show("Error "+sParticiple+"\n"+exn.ToString(),"Backup GoNow");
-				ShowExn(exn,sParticiple,"RunScript");
+				Common.sParticiple = "running " + Common.SafeString(sFileX,true) + ":";
+				if (bTestOnly) MessageBox.Show("Error "+Common.sParticiple+"\n"+exn.ToString(),"Backup GoNow");
+				Common.ShowExn(exn,Common.sParticiple,"RunScript");
 				bGood=false;
 			}
 			try {
@@ -449,7 +422,7 @@ namespace OrangejuiceElectronica {
 			}
 			catch {}
 			if (iFilesProcessed_ThisScript==0) iFilesProcessed_ThisScript=iFilesProcessed-iFilesProcessedPrev;
-			if (bRemoveTrivialMessagesAfterScript&&bOutputTrivial&&(iFilesProcessed_ThisScript+alSkipped.Count+alCopyError.Count>0)) {
+			if (bRemoveTrivialMessagesAfterScript&&bOutputTrivial&&(iFilesProcessed_ThisScript+alSkippedDueToException.Count+alCopyError.Count>0)) {
 				Output(sRemovingTrivialMessages_TheMetaTrivialMessage,true);
 				RemoveTrivialMessages();
 			}
@@ -468,7 +441,9 @@ namespace OrangejuiceElectronica {
 				string sLineTemp="";
 				while (this.lbOut.Items.Count>0 && iLine<lbOut.Items.Count) {
 					sLineTemp=lbOut.Items[iLine].ToString();
-					
+					if (bUserCancelledLastRun) {
+						break;
+					}
 					if (sLineTemp.Contains(sWasUpToDate)||sLineTemp==sRemovingTrivialMessages_TheMetaTrivialMessage) {
 						//Console.Error.WriteLine();//debug only
 						//Console.Error.Write("Removing["+iLine.ToString()+"]:\""+lbOut.Items[iLine].ToString()+"\"");//debug only
@@ -491,67 +466,44 @@ namespace OrangejuiceElectronica {
 				//Console.Error.WriteLine("RemoveTrivialMessages done.");//debug only
 			}
 			catch (Exception exn) {
-				ShowExn(exn,"simplifying output",String.Format("RemoveTrivialMessages(){{iLine:{0}}}:",iLine));
+				Common.ShowExn(exn,"simplifying output",String.Format("RemoveTrivialMessages(){{iLine:{0}}}:",iLine));
 			}
 			lbOutNow.EndUpdate();
 		}
 		//public static string WithoutEndDirSep(string sPathX) {
-		//	if (sPathX.Length>1&&sPathX.EndsWith(sDirSep)) {
+		//	if (sPathX.Length>1&&sPathX.EndsWith(Common.sDirSep)) {
 		//		sPathX=sPathX.Substring(0,sPathX.Length-1);
 		//	}
 		//	return sPathX;
 		//}//end WithoutEndDirSep
-
-		public static string FolderThenSlash(string sPath, string DirectoryDelimiter) {
-			return (sPath!=null&&sPath!="")?(sPath.EndsWith(DirectoryDelimiter)?sPath:sPath+DirectoryDelimiter):DirectoryDelimiter;
-		}
-		public static string SlashThenFolder(string sPath, string DirectoryDelimiter) {
-			return (sPath!=null&&sPath!="")?(sPath.StartsWith(DirectoryDelimiter)?sPath:DirectoryDelimiter+sPath):DirectoryDelimiter;
-		}
-		public static string FolderThenNoSlash(string sPath, string DirectoryDelimiter) {
-			return (sPath!=null&&sPath!="")?(sPath.EndsWith(DirectoryDelimiter)?sPath.Substring(0,sPath.Length-1):sPath):"";
-		}
-		public static string NoSlashThenFolder(string sPath, string DirectoryDelimiter) {
-			return (sPath!=null&&sPath!="")?(sPath.StartsWith(DirectoryDelimiter)?sPath.Substring(1):sPath):"";
-		}
-		public static string RemoteFolderThenSlash(string sPath) {
-			return FolderThenSlash(sPath,"/");
-		}
-		public static string RemoteFolderThenNoSlash(string sPath) {
-			return FolderThenNoSlash(sPath,"/");
-		}
-		public static string LocalFolderThenSlash(string sPath) {
-			return FolderThenSlash(sPath,sDirSep);
-		}
-		public static string LocalFolderThenNoSlash(string sPath) {
-			return FolderThenNoSlash(sPath,sDirSep);
-		}
 		
 		public bool SetDestFolder(string FolderNow) {
 			bool bGood=false;
 			int DestFolderIndexNow=-1;
-			sParticiple="initializing";
-			//locinfoarr[DestFolderIndexNow]
+			Common.sParticiple="initializing";
+			//locinfoarrPseudoRoot[DestFolderIndexNow]
+			LocInfo locinfoPseudoRootNow=null;
 			try {
 				if (FolderNow!=null&&FolderNow!="") {
-					sParticiple="removing trailing '"+sDirSep+"'";
-					FolderNow=LocalFolderThenNoSlash(FolderNow);
-					sParticiple="checking driveinfoarrNow";
-					DestFolderIndexNow=MainForm.FolderLocationIndex(FolderNow);
+					Common.sParticiple="removing trailing '"+Common.sDirSep+"'";
+					FolderNow=Common.LocalFolderThenNoSlash(FolderNow);
+					Common.sParticiple="checking driveinfoarrSelectableDrive";
+					DestFolderIndexNow=Common.InternalIndexOfPseudoRootWhereFolderStartsWithItsRoot(FolderNow,false);
+					locinfoPseudoRootNow=(DestFolderIndexNow>=0)?Common.GetPseudoRoot(DestFolderIndexNow):null;
 					if (DestFolderIndexNow<0) {
-						AddLocation(FolderNow);
+						Common.AddFolderToPseudoRoots(FolderNow);
 						Output("Adding location \""+FolderNow+"\"");
-						DestFolderIndexNow=MainForm.FolderLocationIndex(FolderNow);
+						DestFolderIndexNow=Common.InternalIndexOfPseudoRootWhereFolderStartsWithItsRoot(FolderNow,false);
 						Output("  at index "+DestFolderIndexNow);
 					}
 					else {
 						Output("Found location \""+FolderNow+"\"");
-						Output("  at index "+DestFolderIndexNow+" ("+locinfoarr[DestFolderIndexNow].DriveRoot_FullNameThenSlash+")");
+						Output("  at index "+DestFolderIndexNow+" ("+locinfoPseudoRootNow.DriveRoot_FullNameThenSlash+")");
 					}
 					if (DestFolderIndexNow>-1) {
 						bGood=true;
-						DestFolder_FullName=locinfoarr[DestFolderIndexNow].DriveRoot_FullNameThenSlash;
-						if (DestFolder_FullName!=sDirSep&&DestFolder_FullName.EndsWith(sDirSep)) DestFolder_FullName=DestFolder_FullName.Substring(0,DestFolder_FullName.Length-sDirSep.Length);
+						DestFolder_FullName=locinfoPseudoRootNow.DriveRoot_FullNameThenSlash;
+						if (DestFolder_FullName!=Common.sDirSep&&DestFolder_FullName.EndsWith(Common.sDirSep)) DestFolder_FullName=DestFolder_FullName.Substring(0,DestFolder_FullName.Length-Common.sDirSep.Length);
 					}
 					else {
 						Console.Error.WriteLine("SetDestFolder: could not set folder to \""+FolderNow+"\"");
@@ -562,14 +514,14 @@ namespace OrangejuiceElectronica {
 			catch (Exception exn) {
 				ulByteCountDestTotalSize=0;
 				ulByteCountDestAvailableFreeSpace=0;
-				ShowExn(exn,sParticiple+String.Format(" {{driveinfoarrNow{0}; DestFolderIndexNow:{1}}}",(driveinfoarrNow!=null?".Length:"+driveinfoarrNow.Length:":null"),DestFolderIndexNow ),"SetDestFolder");
+				Common.ShowExn(exn,Common.sParticiple+String.Format(" {{driveinfoarrSelectableDrive{0}; DestFolderIndexNow:{1}}}",Common.GetSelectableDriveArrayMsg_LengthColonCount_else_ColonNull(),DestFolderIndexNow ),"SetDestFolder");
 			}
 			try {
 				if (DestFolderIndexNow>-1) {
-					ulByteCountDestTotalSize=(long)locinfoarr[DestFolderIndexNow].TotalSize;
-					ulByteCountDestAvailableFreeSpace=(long)locinfoarr[DestFolderIndexNow].AvailableFreeSpace; //TotalFreeSpace doesn't count user quotas
+					ulByteCountDestTotalSize=(long)locinfoPseudoRootNow.TotalSize;
+					ulByteCountDestAvailableFreeSpace=(long)locinfoPseudoRootNow.AvailableFreeSpace; //TotalFreeSpace doesn't count user quotas
 					//Console.WriteLine( "{0}MB free {1}MB total ({2}bytes/{3}bytes) on {4} ({5})",
-					//		(ulByteCountDestTotalSize/1024/1024), (ulByteCountDestAvailableFreeSpace/1024/1024), ulByteCountDestTotalSize, ulByteCountDestAvailableFreeSpace, locinfoarr[DestFolderIndexNow].VolumeLabel, locinfoarr[DestFolderIndexNow].DriveFormat );
+					//		(ulByteCountDestTotalSize/1024/1024), (ulByteCountDestAvailableFreeSpace/1024/1024), ulByteCountDestTotalSize, ulByteCountDestAvailableFreeSpace, locinfoarrPseudoRoot[DestFolderIndexNow].VolumeLabel, locinfoarrPseudoRoot[DestFolderIndexNow].DriveFormat );
 				}
 				else {
 					ulByteCountDestTotalSize=Int64.MaxValue;
@@ -580,7 +532,7 @@ namespace OrangejuiceElectronica {
 				}
 			}
 			catch (Exception exn) {
-				ShowExn(exn,"accessing locinfoarr["+DestFolderIndexNow.ToString()+"]:");
+				Common.ShowExn(exn,"accessing locinfoarrPseudoRoot["+DestFolderIndexNow.ToString()+"]:");
 				ulByteCountDestTotalSize=0;
 				ulByteCountDestAvailableFreeSpace=0;
 			}
@@ -589,8 +541,8 @@ namespace OrangejuiceElectronica {
 		}//end SetDestFolder
 		/// <summary>
 		/// Makes sure that:
-		/// -sDestRootThenSlash ends with slash (i.e. sDestRootThenSlash=LocalFolderThenSlash(sDestRootThenSlash) )
-		/// -DestSuffixOnlyThenSlash does NOT start with slash, and DOES end with slash
+		/// -sDestRootThenSlash ends with slash (i.e. sDestRootThenSlash=Common.LocalFolderThenSlash(sDestRootThenSlash) )
+		/// -DestSubfolderRelNameThenSlash does NOT start with slash, and DOES end with slash
 		/// </summary>
 		/*
 		public bool FixSlashes() {
@@ -599,20 +551,20 @@ namespace OrangejuiceElectronica {
 			//sDestRootThenSlash=DestFolder_FullName;//GetDestDriveRoot();
 			if (sDestRootThenSlash!="") {
 				bGood=true;
-				if (!sDestRootThenSlash.EndsWith(sDirSep)) sDestRootThenSlash+=sDirSep;
+				if (!sDestRootThenSlash.EndsWith(Common.sDirSep)) sDestRootThenSlash+=Common.sDirSep;
 			}
 			else bGood=false;
-			if (DestSuffixOnlyThenSlash!="") {
-				while (DestSuffixOnlyThenSlash.StartsWith(sDirSep)) DestSuffixOnlyThenSlash=(DestSuffixOnlyThenSlash.Length>1)?DestSuffixOnlyThenSlash.Substring(1):"";
-				if (!DestSuffixOnlyThenSlash.EndsWith(sDirSep)) DestSuffixOnlyThenSlash+=sDirSep;
+			if (DestSubfolderRelNameThenSlash!="") {
+				while (DestSubfolderRelNameThenSlash.StartsWith(Common.sDirSep)) DestSubfolderRelNameThenSlash=(DestSubfolderRelNameThenSlash.Length>1)?DestSubfolderRelNameThenSlash.Substring(1):"";
+				if (!DestSubfolderRelNameThenSlash.EndsWith(Common.sDirSep)) DestSubfolderRelNameThenSlash+=Common.sDirSep;
 			}
 			return bGood;
 		}//end FixSlashes
 		*/
 		public string ReconstructedSourcePath(string sBackupPath) {
 			string sReturn=sBackupPath;
-			//sBackupPath is constructed using: comboDest.Items.Add(LocalFolderThenSlash(locinfoarr[iNow].FullName) + DestSuffixOnlyThenSlash);
-			string sDestPrefix=LocalFolderThenSlash(DestFolder_FullName)+DestSuffixOnlyThenSlash;
+			//sBackupPath is constructed using: comboDest.Items.Add(Common.LocalFolderThenSlash(locinfoarrPseudoRoot[iNow].FullName) + DestSubfolderRelNameThenSlash);
+			string sDestPrefix=Common.LocalFolderThenSlash(DestFolder_FullName)+DestSubfolderRelNameThenSlash;
 			if (sReturn.StartsWith(sDestPrefix)) {
 				if (sReturn.Length>sDestPrefix.Length) {
 					sReturn=sReturn.Substring(sDestPrefix.Length);
@@ -632,13 +584,13 @@ namespace OrangejuiceElectronica {
 				Console.Error.WriteLine("Cannot reconstruct source path for \""+sBackupPath+"\" so it will not be marked for deletion even if it does not exist on the source.");
 			}
 			return sReturn;
-		}
+		}//end ReconstructedSourcePath
 		private static bool bShowReconstructedBackupPathError=true;
 		public string ReconstructedBackupPath(string sSrcPath) {
 			//Output("Reconstruction sSrcPath(as received): "+sSrcPath);//debug only
 			//Output("Reconstruction DestFolder_FullName(as received): "+DestFolder_FullName);//debug only
-			//NOTE: LocalFolderThenSlash just makes sure it ends with a slash and uses sDirSep
-			string sReturn=LocalFolderThenSlash(DestFolder_FullName)+DestSuffixOnlyThenSlash;
+			//NOTE: Common.LocalFolderThenSlash just makes sure it ends with a slash and uses Common.sDirSep
+			string sReturn=Common.LocalFolderThenSlash(DestFolder_FullName)+DestSubfolderRelNameThenSlash;
 			string sDestAppend=sSrcPath;
 			int iStart=0;
 			if (sDestAppend[iStart]=='/') {
@@ -646,14 +598,14 @@ namespace OrangejuiceElectronica {
 					iStart++;
 				}
 			}
-			//else iStart=Chunker.IndexOfAnyDirectorySeparatorChar(sDestAppend); //uncommenting this removes the "C" folder if using this program in windows to backup local files
+			//else iStart=IndexOfAnyDirectorySeparatorChar(sDestAppend); //uncommenting this removes the "C" folder if using this program in windows to backup local files
 			if (iStart>-1&&iStart<sDestAppend.Length) {
 				sDestAppend=sDestAppend.Substring(iStart);
 				//if (bTestOnly) Output("Reconstruction(before normalize): "+sDestAppend);
-				sDestAppend=Chunker.ConvertDirectorySeparatorsToNormal(sDestAppend);
+				sDestAppend=Common.ConvertDirectorySeparatorsToNormal(sDestAppend);
 				//if (bTestOnly) Output("Reconstruction(before removedouble): "+sDestAppend);
-				sDestAppend=Chunker.RemoveDoubleDirectorySeparators(sDestAppend);
-				if (sDestAppend!=null&&sDestAppend!=""&&sDestAppend.StartsWith(sDirSep)) {
+				sDestAppend=Common.RemoveDoubleDirectorySeparators(sDestAppend);
+				if (sDestAppend!=null&&sDestAppend!=""&&sDestAppend.StartsWith(Common.sDirSep)) {
 					if (sDestAppend.Length>1) sDestAppend=sDestAppend.Substring(1);
 					else sDestAppend="";
 				}
@@ -661,15 +613,15 @@ namespace OrangejuiceElectronica {
 			else sDestAppend="";
 
 			if (sDestAppend=="") {
-				sReturn=LocalFolderThenSlash(DestFolder_FullName);
+				sReturn=Common.LocalFolderThenSlash(DestFolder_FullName);
 				if (bShowReconstructedBackupPathError) {
 					MessageBox.Show("The backup source cannot be parsed so these files will be placed in \""+sReturn+"\".");
 					bShowReconstructedBackupPathError=false;
 				}
 			}
 			else sReturn+=sDestAppend;
-			if ( !sReturn.EndsWith(sDirSep) )
-				sReturn+=sDirSep;
+			if ( !sReturn.EndsWith(Common.sDirSep) )
+				sReturn+=Common.sDirSep;
 			return sReturn;
 		}//end ReconstructedBackupPath
 		/*
@@ -695,10 +647,14 @@ namespace OrangejuiceElectronica {
 			catch {
 			}
 			if (!bAlreadyExisted) {
+				string sGetExn="";
 				ArrayList alFoldersNotPreviouslyExisting=new ArrayList();
-				if (!Chunker.CreateFolderRecursively(ref alFoldersNotPreviouslyExisting, BackupFolder_FullName)) bGood=false;
+				if (!Common.CreateFolderRecursively(out sGetExn, ref alFoldersNotPreviouslyExisting, BackupFolder_FullName)) bGood=false;
 				foreach (string FolderNow_FullName in alFoldersNotPreviouslyExisting) {
 					//if (!AlreadyMkdir(FolderNow_FullName)) {
+					if (bUserCancelledLastRun) {
+						bUserCancelledLastRun=true;
+					}
 					if (!Directory.Exists(FolderNow_FullName)) {
 						WriteRetryLineIfCreatingRetryBatch(sMkdir+" \""+FolderNow_FullName+"\"");
 					}
@@ -711,7 +667,7 @@ namespace OrangejuiceElectronica {
 				if (!Directory.Exists(BackupFolder_FullName)) Output("FAILED TO CREATE \""+BackupFolder_FullName+"\"",true);
 				else //if (bTestOnly)
 				Output("Created \""+BackupFolder_FullName+"\" to contain backup folder \""+BackupFolder_FullName+"\" (source path \""+sSrcPath+"\")");
-				if (!bGood&&Chunker.sLastExn.ToLower().IndexOf("system.io.ioexception: disk full")>-1) bDiskFullLastRun=true;
+				if (!bGood&&sGetExn.ToLower().IndexOf("system.io.ioexception: disk full")>-1) bDiskFullLastRun=true;
 			}
 			else bGood=true;
 			return bGood;
@@ -736,15 +692,14 @@ namespace OrangejuiceElectronica {
 			}
 			try {
 				if (fiNow==null) fiNow=new FileInfo(SrcFile_FullName);
-				string sDirSep=char.ToString(Path.DirectorySeparatorChar);
 				if (fiNow.Exists) {
 					ulByteCountFolderNowDone+=(ulong)fiNow.Length;
 					ulByteCountTotalProcessed+=(ulong)fiNow.Length;
-					string BackupFolder_ThenSlash=bUseReconstructedPath?ReconstructedBackupPath(fiNow.Directory.FullName):LocalFolderThenSlash(DestFolder_FullName);
+					string BackupFolder_ThenSlash=bUseReconstructedPath?ReconstructedBackupPath(fiNow.Directory.FullName):Common.LocalFolderThenSlash(DestFolder_FullName);
 					if (bUseReconstructedPath) {
 						if (!Directory.Exists(ReconstructedBackupPath(fiNow.Directory.FullName))) ReconstructPathOnBackup(fiNow.Directory.FullName);
 					}
-					if (!BackupFolder_ThenSlash.EndsWith(sDirSep)) BackupFolder_ThenSlash+=sDirSep;
+					if (!BackupFolder_ThenSlash.EndsWith(Common.sDirSep)) BackupFolder_ThenSlash+=Common.sDirSep;
 					sDestFile=BackupFolder_ThenSlash+fiNow.Name;
 					FileInfo fiDest=new FileInfo(sDestFile);
 					if (fiDest.Exists) {
@@ -796,15 +751,28 @@ namespace OrangejuiceElectronica {
 				if (sLastAttemptedCommand!=null&&sLastAttemptedCommand!="") {
 					WriteRetryLineIfCreatingRetryBatch(sLastAttemptedCommand);
 				}
-				if (exn.ToString().ToLower().IndexOf("system.io.ioexception: disk full")>-1) bDiskFullLastRun=true;
+				if (exn.ToString().ToLower().IndexOf("system.io.ioexception: disk full")>-1
+				   || exn.ToString().ToLower().IndexOf("system.io.ioexception: there is not enough space on the disk")>-1) {
+					bDiskFullLastRun=true;
+				}
+				else if (exn.ToString().ToLower().IndexOf("too long")>-2) {
+					alCopyError.Add("Filename is too long for "+sCopyErrorFileFullNameOpener+SrcFile_FullName+sCopyErrorFileFullNameCloser+ToOneLine(exn.ToString()));
+				}
 				else if (exn.ToString().ToLower().IndexOf("system.io.directorynotfoundexception")>-1) {
 					alCopyError.Add("Recreate source folder failed"+sCopyErrorFileFullNameOpener+SrcFile_FullName+sCopyErrorFileFullNameCloser+ToOneLine(exn.ToString()));
+				}
+				else if (exn.ToString().ToLower().IndexOf("not enough space")>-2) {
+					//NOTE: can be unable to copy file even if disk not technically full
+					bDiskFullLastRun=true;//bFileTooBigToFitLastRun=true;
+					alCopyError.Add("Not enough space for"+sCopyErrorFileFullNameOpener+SrcFile_FullName+sCopyErrorFileFullNameCloser+ToOneLine(exn.ToString()));
 				}
 				else {
 					alCopyError.Add("Could not read"+sCopyErrorFileFullNameOpener+SrcFile_FullName+sCopyErrorFileFullNameCloser+ToOneLine(exn.ToString()));
 					bCopyErrorLastRun=true;
 				}
-				ShowExn(exn,"backing up file","BackupFile");
+				string sMsg="";
+				if (alCopyError.Count>0) sMsg=(string)alCopyError[alCopyError.Count-1];
+				Common.ShowExn(exn,"backing up file ("+sMsg+")","BackupFile");
 			}
 			iFilesProcessed++;
 		}//end BackupFile
@@ -840,7 +808,7 @@ namespace OrangejuiceElectronica {
 				}
 			}
 			catch (Exception exn) {
-				ShowExn(exn,"","MainForm.Flush");
+				Common.ShowExn(exn,"","MainForm.Flush");
 			}
 		}
 		public static bool bShowNoDiskSpaceAtStartWarning=true;
@@ -859,7 +827,7 @@ namespace OrangejuiceElectronica {
 			}
 			catch (Exception exn) {
 				if (bShowOutputException) {
-					ShowExn(exn,"","Output("+((sLineX!=null)?("non-null"):("null"))+","+(bForceRefresh?"true":"false")+")");
+					Common.ShowExn(exn,"","Output("+((sLineX!=null)?("non-null"):("null"))+","+(bForceRefresh?"true":"false")+")");
 					MessageBox.Show("Exception in Output: \n\n"+exn.ToString());
 					bShowOutputException=false;
 				}
@@ -908,51 +876,37 @@ namespace OrangejuiceElectronica {
 						//}
 					//}
 				}
-				if (bRealTime) {
+				//if (bRealTime) {
 					//int iDot=sPercentFree.IndexOf(".");
 					//if (iDot>-1) {
 					//	if (iDot
 					//}
-					tbStatusNow.Text=String.Format( "{0}MB ({1} files) processed, {2}MB added      {3} " + ((ulByteCountDestAvailableFreeSpace==Int64.MaxValue)?"disk space unknown (not implemented in this version of your computer's framework)({4}/{5}MB)":"space remaining ({4}/{5}MB)"),
-						(ulByteCountTotalProcessed/1024/1024), iFilesProcessed, lByteCountTotalActuallyAdded/1024/1024, sPercentFree, (lFree/1024/1024), ulByteCountDestTotalSize/1024/1024 )
+					ulong ulMBProcessed=ulByteCountTotalProcessed/1024/1024;
+					ulong ulKBProcessed=ulByteCountTotalProcessed/1024;
+					string Processed_Size=ulMBProcessed.ToString()+"MB";
+					if (ulMBProcessed==0) Processed_Size=ulKBProcessed.ToString()+"KB";
+					if (ulKBProcessed==0) Processed_Size=ulByteCountTotalProcessed+"bytes";
+
+					long ulMBAdded=lByteCountTotalActuallyAdded/1024/1024;
+					long ulKBAdded=lByteCountTotalActuallyAdded/1024;
+					string Added_Size=ulMBAdded.ToString()+"MB";
+					if (ulMBAdded==0) Added_Size=ulKBAdded.ToString()+"KB";
+					if (ulKBAdded==0) Added_Size=lByteCountTotalActuallyAdded+"bytes";
+					
+					
+					tbStatusNow.Text=String.Format( "{0} ({1} files) processed, {2} added      {3} " + ((ulByteCountDestAvailableFreeSpace==Int64.MaxValue)?"disk space unknown (not implemented in this version of your computer's framework)({4}/{5}MB)":"space remaining ({4}/{5}MB)"),
+						Processed_Size, iFilesProcessed, Added_Size, sPercentFree, (lFree/1024/1024), ulByteCountDestTotalSize/1024/1024 )
 						+(bAutoScroll?"":"...");
-				}
-				else tbStatusNow.Text=String.Format( "{0}MB / {1}MB counted so far",
-						((ulByteCountTotalProcessed)/1024/1024),(ulByteCountTotal/1024/1024) )
-						+  (bAutoScroll?"":"...");
+				//}
+				//else tbStatusNow.Text=String.Format( "{0}MB / {1}MB counted so far",
+				//		((ulByteCountTotalProcessed)/1024/1024),(ulByteCountTotal/1024/1024) )
+				//		+  (bAutoScroll?"":"...");
 		
 			}
 			catch (Exception exn) {
-				ShowExn(exn,"updating progress bar");
+				Common.ShowExn(exn,"updating progress bar");
 			}
 		}//end UpdateProgressBar
-		/// <summary>
-		/// Checks string against ExcludeDest strings (all, literal)
-		/// </summary>
-		/// <param name="DestName"></param>
-		/// <returns>True if DestName was not specified by an ExcludeDest statement</returns>
-		bool ValidDest(string DestName) {
-			bool bValid=true;
-			foreach (string sInvalid in alInvalidDrives) {
-				if (DestName.ToLower()==sInvalid.ToLower()) {
-					bValid=false;
-					break;
-				}
-			}
-			return bValid;
-		}
-		//bool ValidDestLabel(string DestName) {
-		//	bool bValid=true;
-		//	if (DestName!=null&&DestName.Length>0) {
-		//		foreach (string sInvalid in alInvalidDrives) {
-		//			if (DestName.ToLower()==sInvalid.ToLower()) {
-		//				bValid=false;
-		//				break;
-		//			}
-		//		}
-		//	}
-		//	return bValid;
-		//}
 		
 		void ComboDestSelectedIndexChanged(object sender, EventArgs e)
 		{
@@ -973,10 +927,19 @@ namespace OrangejuiceElectronica {
 		void DeleteFolderRecursively(DirectoryInfo diBase, bool bDecrementBytesAdded) {
 			string Directory_FullName="";
 			try {
+				if ( (diBase.Attributes & FileAttributes.ReadOnly) == FileAttributes.ReadOnly ) {
+					try {
+						//faPrev=fiNow.Attributes;
+						diBase.Attributes=FileAttributes.Normal;
+						//bChangeAttrib=true;
+					}
+					catch {}
+				}
 				Directory_FullName=diBase.FullName;
 				string FileNow_FullName="";
 				long FileNow_Length=0;
 				foreach (FileInfo fiNow in diBase.GetFiles()) {
+					if (bUserCancelledLastRun) break;
 					try {
 						FileNow_FullName=fiNow.FullName;
 						FileNow_Length=fiNow.Length;
@@ -987,30 +950,38 @@ namespace OrangejuiceElectronica {
 							
 						//	fisec.SetOwner(idref);
 						//}
+						try {
+							if ( (fiNow.Attributes & FileAttributes.ReadOnly) == FileAttributes.ReadOnly ) 
+								fiNow.Attributes=FileAttributes.Normal;
+						}
+						catch (Exception exn) {
+							Output("CouldntRemoveReadonlyStatus:"+fiNow.FullName);
+						}
 						fiNow.Delete();
 						if (bDecrementBytesAdded) MainForm.lByteCountTotalActuallyAdded-=FileNow_Length;
 					}
 					catch (Exception exn) {
-						ShowExn(exn,"deleting file "+SafeString(FileNow_FullName,true));
+						Common.ShowExn(exn,"deleting file "+Common.SafeString(FileNow_FullName,true));
 					}
 				}
 				foreach (DirectoryInfo diSub in diBase.GetDirectories()) {
+					if (bUserCancelledLastRun) break;
 					DeleteFolderRecursively(diSub,bDecrementBytesAdded);
 				}
 				diBase.Attributes=FileAttributes.Normal;
 				diBase.Delete();
 			}
 			catch (Exception exn) {
-				ShowExn(exn,"deleting folder "+SafeString(Directory_FullName,true));
+				Common.ShowExn(exn,"deleting folder "+Common.SafeString(Directory_FullName,true));
 			}
-		}
+		}//end DeleteFolderRecursively
 		/*
 		void DeleteFolderRecursively(string Directory_FullName) {
 			lByteCountTotalActuallyAdded-=
 		}
 		
 		void DeleteIfNotOnSource_Recursively(string FolderNoSlash_FullName) {
-			if ((FolderNoSlash_FullName+sDirSep)!=(sDestPrefix) {
+			if ((FolderNoSlash_FullName+Common.sDirSep)!=(sDestPrefix) {
 				if () {
 				}//end if delete whole folder
 				else {
@@ -1024,132 +995,10 @@ namespace OrangejuiceElectronica {
 			}
 		}//end DeleteIfNotOnSource_Recursively
 		*/
-		void BtnGoClick(object sender, EventArgs e)
-		{
-			if (this.comboDest.Text!="") {
-				btnGo.Enabled=false;
-				btnEditMain.Enabled=false;
-				btnEditScript.Enabled=false;
-				bUserCancelledLastRun=false;
-				bCopyErrorLastRun=false;
-				bDiskFullLastRun=false;
-				bool bGood=true;
-				
-				//if (!FixSlashes()) bGood=false;
-				if (!SetDestFolder(comboDest.Text)) bGood=false;
-				if (bDeleteFilesNotOnSource_BeforeBackup) {
-					string sDestPrefix=LocalFolderThenSlash(DestFolder_FullName)+DestSuffixOnlyThenSlash;
-					if (sDestPrefix.Length>1&&sDestPrefix.EndsWith(sDirSep)) sDestPrefix=sDestPrefix.Substring(0,sDestPrefix.Length-1);
-					//TODO: DeleteIfNotOnSource_Recursively(sDestPrefix);
-					//TODO: MessageBox.Show("Reconstructed source \""+sReturn+"\" "+((Directory.Exists(sReturn))?"exists":"does not exist"));
-				}
-				
-				if (ulByteCountTotalProcessed_LastRun>0) {
-					//mainformNow.progressbarMain.Style=ProgressBarStyle.Continuous; //should be already set
-				}
-				else {
-					mainformNow.progressbarMain.Style=ProgressBarStyle.Marquee;
-				}
-				if (!RunScript(MainForm.BackupProfileFolder_FullName+sDirSep+ScriptFile_Name)) bGood=false;
-				if (mainformNow.progressbarMain.Style==ProgressBarStyle.Marquee) {
-					mainformNow.progressbarMain.Style=ProgressBarStyle.Continuous;
-					mainformNow.progressbarMain.Value=bGood?mainformNow.progressbarMain.Maximum:(mainformNow.progressbarMain.Maximum/2);
-				}
-				
-				Output((ulByteCountTotalProcessed/1024/1024/1024).ToString()+"GB = "+(ulByteCountTotalProcessed/1024/1024).ToString()+"MB = "+(ulByteCountTotalProcessed/1024).ToString()+"KB = "+ulByteCountTotalProcessed.ToString()+"bytes of "+(ulByteCountTotal/1024/1024).ToString()+"MB source data finished, "+(ulByteCountTotalActuallyCopied/1024/1024).ToString()+"MB difference copied).",true);
-				try {
-					if (bGood&&!MainForm.bUserCancelledLastRun) {
-						Output("Opening log \""+BackupProfileFolder_FullName + sDirSep + LogFile_Name+"\"",true);
-						StreamWriter streamOut=new StreamWriter(BackupProfileFolder_FullName + sDirSep + LogFile_Name);
-						Output("Writing log...",true);
-						streamOut.WriteLine("ulByteCountTotalProcessed:"+ulByteCountTotalProcessed.ToString());
-						streamOut.Close();
-						Output("Writing log...OK",true);
-					}
-				}
-				catch (Exception exn) {
-					Console.Error.WriteLine();
-				}
-				if (!bGood) {
-					MessageBox.Show("Backup was not complete.  Close all other programs and try again--some skipped files may be system files and are not required to be backed up.");
-					this.btnGo.Enabled = true;
-				}
-				else {
-					if (bUserCancelledLastRun) MessageBox.Show("Cancelled Backup");
-					else if (bDiskFullLastRun) MessageBox.Show("Destination drive is full - Could not finish");
-					else if (bCopyErrorLastRun) {
-						int iActualNamesFound=0;
-						string sFileList="";
-						string FileNow_FullName;
-						string FileNow_Name;
-						string FileNow_Directory_FullName;
-						if (alCopyError!=null&&alCopyError.Count>0) {
-							foreach (string sCopyErrorNow in alCopyError) {
-								if (sCopyErrorNow!=null&&sCopyErrorNow!="") {
-									if (iActualNamesFound>=iMaxCopyErrorsToShow) {
-										sFileList+="\n(there are more errors but this list has been limited to "+iMaxCopyErrorsToShow.ToString()+")";
-										break;
-									}
-									int iFileFullNameStart=sCopyErrorNow.IndexOf(sCopyErrorFileFullNameOpener);
-									int iCopyErrorEnder=iFileFullNameStart;
-									int iFileFullNameEnder=sCopyErrorNow.IndexOf(sCopyErrorFileFullNameCloser);
-									if (iFileFullNameStart>-1) {
-										iFileFullNameStart+=sCopyErrorFileFullNameOpener.Length;
-										if (iFileFullNameEnder>-1) FileNow_FullName=sCopyErrorNow.Substring(iFileFullNameStart,(iFileFullNameEnder-iFileFullNameStart));
-										else FileNow_FullName=sCopyErrorNow.Substring(iFileFullNameStart);
-									}
-									else FileNow_FullName="";
-									while (FileNow_FullName.EndsWith(sDirSep)) {
-										if (FileNow_FullName==sDirSep) break;
-										else FileNow_FullName=FileNow_FullName.Substring(0,FileNow_FullName.Length-1);
-									}
-									int iLastSlash=FileNow_FullName.LastIndexOf(sDirSep);
-									if (iLastSlash>=0) {
-										if (FileNow_FullName==sDirSep) {
-											FileNow_Name="(root filesystem)";
-											FileNow_Directory_FullName="/";
-										}
-										else {
-											FileNow_Name=FileNow_FullName.Substring(iLastSlash+1);
-											if (iLastSlash==0) FileNow_Directory_FullName=FileNow_FullName.Substring(0,1);
-											else FileNow_Directory_FullName=FileNow_FullName.Substring(0,iLastSlash);
-										}
-										if (FileNow_Name=="") FileNow_Name="(unknown file)";
-										if (FileNow_Directory_FullName=="") FileNow_Directory_FullName="(unknown location)";
-										sFileList+=" \n"+FileNow_Name+" in "+FileNow_Directory_FullName;
-										if (iCopyErrorEnder>0) sFileList+=" *"+sCopyErrorNow.Substring(0,iCopyErrorEnder);//intentionally iCopyErrorEnder>0 so that it is ignored if ender is at location zero
-									}
-									else {
-										FileNow_Name="";
-										FileNow_Directory_FullName="";
-										if (FileNow_FullName!="") sFileList+=" \n"+FileNow_FullName;
-										else sFileList+=" \n"+"(?)";
-									}
-									
-									if (sFileList=="") sFileList="Copy Error while attempting to backup the following files: ";
-									iActualNamesFound++;
-								}
-							}
-						}
-						if (sFileList=="") sFileList="Copy error: could not copy "+alCopyError.Count.ToString()+" file"+((alCopyError.Count!=1)?"s":"")+".";
-						//MessageBox.Show(sFileList);
-						DialogResult dlg=MessageBox.Show(sFileList+"\n\n  Do you wish to to review the list (press cancel to exit)?","Result", MessageBoxButtons.OKCancel);
-						if (dlg==DialogResult.OK) bUserSaysStayOpen=true;
-						else bUserSaysStayOpen=false;
-					}
-					else MessageBox.Show("Finished Backup");
-					if ((bCopyErrorLastRun&&!bUserSaysStayOpen) || !bTestOnly && !bAlwaysStayOpen) Application.Exit(); // && !bCopyErrorLastRun
-				}
-				btnEditMain.Enabled=true;
-				btnEditScript.Enabled=true;
-			}
-			else {
-				MessageBox.Show(LimitedWidth("No destination drive is present.  Connect a flash drive, external hard drive, or other backup media and open the "+sMyName+" icon again.",40,"\n",true));
-			}
-		}//end BtnGoClick
 		
-		void MainFormLoad(object sender, EventArgs e)
-		{
+		void MainFormLoad(object sender, EventArgs e) {
+			Common.mcbNow=new MyCallBack();
+			menuitemCancel.Enabled=false;
 			this.Text=sMyNameAndVersion;
 			this.tbStatus.Text = "Welcome to "+sAppName+"";
 			DateTime datetimeNow = DateTime.Now;
@@ -1160,23 +1009,30 @@ namespace OrangejuiceElectronica {
 			Console.Error.Write("{0}", sMyProcess);
 			Console.Error.WriteLine(": started at {0}.", datetimeNow);
 			Console.Error.WriteLine();
-
-			FolderLister.bDebug=bTestOnly;
-			Chunker.bDebug=bTestOnly;
+			if (bTestOnly) Common.iDebugLevel=Common.DebugLevel_On;
+			//FolderLister.bDebug=bTestOnly;
+			//bDebug=bTestOnly;
 			lbOutNow=this.lbOut;
-			Console.Error.WriteLine("About to load " + SafeString(StartupFile_Name,true));
+			Console.Error.WriteLine("About to load " + Common.SafeString(StartupFile_Name,true));
+			DateTime dtNow=DateTime.Now;
+			lbOutNow.Items.Add(dtNow.Year+"-"+dtNow.Month+"-"+dtNow.Day+" "+dtNow.Hour+":"+dtNow.Minute);
 			RunScript(StartupFile_Name);
 			this.lblProfile.Visible=true;
-			Console.Error.WriteLine("Finished " + SafeString(StartupFile_Name,true)+" in MainFormLoad");
+			Console.Error.WriteLine("Finished " + Common.SafeString(StartupFile_Name,true)+" in MainFormLoad");
 			bool bFoundLoadProfile=false;
 			bool bSuccessFullyResetStartup=false;
+			string sMsg="Attempting to get path of current user's Documents...";
+			tbStatus.Text=sMsg;
+			OutputFile_FullName=Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)+Common.sDirSep+OutputFile_Name;
+			sMsg="Welcome to "+sMyName+"!";
+			tbStatus.Text=sMsg;
 			if (!bLoadedProfile) {
-				Console.Error.WriteLine(SafeString(StartupFile_Name,true)+" did not load a profile so loading default (\""+DefaultProfile_Name+"\")");
+				Console.Error.WriteLine(Common.SafeString(StartupFile_Name,true)+" did not load a profile so loading default (\""+DefaultProfile_Name+"\")");
 				bool bTest=RunScriptLine("LoadProfile:"+DefaultProfile_Name);
 				Console.Error.WriteLine("Loaded Profile \""+DefaultProfile_Name+"\"..."+(bTest?"OK":"FAILED!"));
 				string sAllData="";
 				try {
-					string sMsg="Attempting to edit "+SafeString(StartupFile_Name,true)+" and add \"LoadProFile:"+DefaultProfile_Name+"\" if no valid LoadProfile statement is found...";
+					sMsg="Attempting to edit "+Common.SafeString(StartupFile_Name,true)+" and add \"LoadProFile:"+DefaultProfile_Name+"\" if no valid LoadProfile statement is found...";
 					tbStatus.Text=sMsg;
 					Application.DoEvents();
 					Console.Error.Write(sMsg);
@@ -1207,11 +1063,11 @@ namespace OrangejuiceElectronica {
 						}
 					}
 					catch (Exception exn) {
-						ShowExn(exn,"reading "+SafeString(StartupFile_Name,true));
+						Common.ShowExn(exn,"reading "+Common.SafeString(StartupFile_Name,true));
 					}
 					Console.Error.Write("writing data...");
 					Console.Error.Flush();
-					System.Threading.Thread.Sleep(100);//wait for file to be ready (is this ever needed???)
+					//System.Threading.Thread.Sleep(100);//wait for file to be ready (is this ever needed???)
 					StreamWriter streamOut=new StreamWriter(StartupFile_Name);
 					streamOut.WriteLine(sAllData);
 					streamOut.WriteLine("LoadProfile:"+DefaultProfile_Name);
@@ -1220,23 +1076,23 @@ namespace OrangejuiceElectronica {
 					bSuccessFullyResetStartup=true;
 				}
 				catch (Exception exn) {
-					ShowExn(exn,"creating "+SafeString(StartupFile_Name,true),"MainFormLoad");
+					Common.ShowExn(exn,"creating "+Common.SafeString(StartupFile_Name,true),"MainFormLoad");
 				}
-				System.Threading.Thread.Sleep(500);
+				//System.Threading.Thread.Sleep(500);
 				tbStatus.Text="Done checking startup {bLoadedProfile:"+(bLoadedProfile?"yes":"no")+"; bFoundLoadProfile:"+(bFoundLoadProfile?"yes":"no")+"; bSuccessFullyResetStartup:"+(bSuccessFullyResetStartup?"yes":"no")+"}.";
 			}//end if !bLoadedProfile
-			
-			if (iLocations>0) {
-				if (bExitIfNoUsableDrivesFound&&iValidDrivesFound==0 && !bAlwaysStayOpen) Application.Exit();
+			alPseudoRootsNow=Common.PseudoRoots_DriveRootFullNameThenSlash_ToArrayList();
+			alSelectableDrives=Common.SelectableDrives_DriveRootFullNameThenSlash_ToArrayList();
+			if (alPseudoRootsNow!=null && alPseudoRootsNow.Count>0) {
+				if (bExitIfNoUsableDrivesFound&&(alSelectableDrives==null||alSelectableDrives.Count==0) && !bAlwaysStayOpen)
+					Application.Exit();
 			}
-			else if (!bTestOnly&&!bAlwaysStayOpen) Application.Exit();
+			else if (!bTestOnly&&!bAlwaysStayOpen)
+				Application.Exit();
 			
 			CalculateMargins();
 			UpdateSize();
 		}//end MainFormLoad
-		public static string SafeString(string val, bool bShowValueAndQuoteIfNonNull) {
-			return ( (val!=null) ? (bShowValueAndQuoteIfNonNull?"\""+val+"\"":"non-null") : "null" );
-		}
 		void CalculateMargins() {
 			iLBRightMargin=lbOut.Left;//this.Width-(lbOut.Left+lbOut.Width);
 			iLBBottomMargin=this.Height-(lbOut.Top+lbOut.Height);
@@ -1245,7 +1101,6 @@ namespace OrangejuiceElectronica {
 		void UpdateSize() {
 			lbOut.Width=this.ClientSize.Width-lbOut.Left*2;//(iLBRightMargin+lbOut.Left);
 			lbOut.Height=this.ClientSize.Height-lbOut.Top-tbStatus.Height-lbOut.Left;//(iLBBottomMargin+lbOut.Top);
-			//btnGo.Left=(this.Width-btnGo.Width)/2;
 			this.progressbarMain.Left=this.ClientRectangle.Left;
 			this.progressbarMain.Width=this.ClientRectangle.Width;
 			this.progressbarMain.Top=this.tbStatus.Top-this.progressbarMain.Height;
@@ -1253,43 +1108,29 @@ namespace OrangejuiceElectronica {
 			//this.lblDest.Width=this.ClientSize.Width;
 		}
 
-		void ComboDestTextChanged(object sender, EventArgs e)
-		{
+		void ComboDestTextChanged(object sender, EventArgs e) {
 			//bool bFound=false;
 			//foreach (string sNow in comboDest.Items) {
 			//	if (comboDest.Text==sNow) bFound=true;
 			//}
 			//if (!bFound) comboDest.SelectedIndex=0;
-			int FolderIndexNow=MainForm.FolderLocationIndex(comboDest.Text);
-			bool bGB=locinfoarr[FolderIndexNow].AvailableFreeSpace/1024/1024/1024 > 0;
+			int FolderIndexNow=Common.InternalIndexOfPseudoRootWhereFolderStartsWithItsRoot(comboDest.Text,false);
+			LocInfo locinfoNow=Common.GetPseudoRoot(FolderIndexNow);
+			bool bGB=locinfoNow.AvailableFreeSpace/1024/1024/1024 > 0;
 			if (FolderIndexNow>=0) {
-				this.lblDestInfo.Text=locinfoarr[FolderIndexNow].VolumeLabel+" ("
-					+ ((locinfoarr[FolderIndexNow].AvailableFreeSpace!=Int64.MaxValue)  ?  ( bGB ? (((decimal)locinfoarr[FolderIndexNow].AvailableFreeSpace/1024m/1024m/1024m).ToString("#")+"GB free"):(((decimal)locinfoarr[FolderIndexNow].AvailableFreeSpace/1024m/1024m).ToString("0.###")+"MB free") )  :  "unknown free"  );
+				this.lblDestInfo.Text=locinfoNow.VolumeLabel+" ("
+					+ ((locinfoNow.AvailableFreeSpace!=Int64.MaxValue)  ?  ( bGB ? (((decimal)locinfoNow.AvailableFreeSpace/1024m/1024m/1024m).ToString("#")+"GB free"):(((decimal)locinfoNow.AvailableFreeSpace/1024m/1024m).ToString("0.###")+"MB free") )  :  "unknown free"  );
 			}
 			else this.lblDestInfo.Text="";
-		}
+		}//end ComboDestTextChanged
 		
-		void MainFormResize(object sender, EventArgs e)
-		{
+		void MainFormResize(object sender, EventArgs e) {
 			UpdateSize();
 		}
 		
-		void MainFormFormClosed(object sender, FormClosedEventArgs e)
-		{
+		void MainFormFormClosed(object sender, FormClosedEventArgs e) {
 		}
 		
-		void BtnCancelClick(object sender, EventArgs e)
-		{
-			if (bBusyCopying) {
-				btnCancel.Enabled=false;
-				bUserCancelledLastRun=true;
-			}
-			else {
-				if (flisterNow!=null&&flisterNow.IsBusy) flisterNow.Stop();
-				btnCancel.Enabled=false;
-				bUserCancelledLastRun=true;
-			}
-		}
 //lines in MainForm.Designer.cs
 /*		private void LbOutDrawItem(object sender, System.Windows.Forms.DrawItemEventArgs e) {
 			e.DrawBackground();
@@ -1317,19 +1158,29 @@ namespace OrangejuiceElectronica {
 			bool bForceBad=false;
 			bool bGood=false;
 			try {
+				Common.RemoveEndsWhiteSpaceByRef(ref sLine);
+				Common.sParticiple="showing line";
+				if (sLine==null||!sLine.StartsWith("#")) this.lbOut.Items.Add("   RunScriptLine("+Common.SafeString(sLine,true)+")");
+				Common.sParticiple="parsing line";
 				int iMarker=sLine.IndexOf(":");
 				if (iMarker>0 && sLine.Length>(iMarker+1)) {
 					string sCommandLower=sLine.Substring(0,iMarker).ToLower();
 					string sValue=sLine.Substring(iMarker+1);
 					string sValueOrig=sValue;
 					try {
+						DirectoryInfo diMyDocs=new DirectoryInfo(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
+						DirectoryInfo diUserProfile=null;
+						if (diMyDocs!=null&&diMyDocs.Exists) diUserProfile=diMyDocs.Parent;
+						if (diUserProfile!=null&&diUserProfile.Exists) {
+							sValue=sValue.Replace("%USERPROFILE%",diUserProfile.FullName);
+						}
 						sValue=sValue.Replace("%MYDOCS%",Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)); //same as Personal
 						sValue=sValue.Replace("%DESKTOP%",Environment.GetFolderPath(Environment.SpecialFolder.Desktop)); //The logical Desktop rather than the physical file system location DesktopDirectory
 						sValue=sValue.Replace("%APPDATA%",Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData));
 						sValue=sValue.Replace("%LOCALAPPDATA%",Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
 					}
 					catch (Exception exn) {
-						ShowExn(exn,"parsing environment variables in command parameter","RunScriptLine");
+						Common.ShowExn(exn,"parsing environment variables in command parameter","RunScriptLine");
 						sValue=sValueOrig;
 					}
 					/*
@@ -1400,42 +1251,42 @@ namespace OrangejuiceElectronica {
 						//ignore
 					}
 					else if (sCommandLower=="excludedest") {
-						alInvalidDrives.Add(sValue);
+						Common.AddDriveToInvalidDrives(sValue);
 						if (bTestOnly) Output("Not using "+sValue+" for backup");
 					}
 					else if (sCommandLower=="includedest") {
-						alExtraDestinations.Add(sValue);
+						Common.AddPathToExtraPseudoRootsToManuallyAdd(sValue);
 					}
 					else if (sCommandLower=="addmask") {
-						FolderLister.alMasks.Add(sValue);
+						Common.alMasks.Add(sValue);
 						string sTemp="";
-						foreach (string sMask in FolderLister.alMasks) {
+						foreach (string sMask in Common.alMasks) {
 							sTemp+=(sTemp==""?"":", ")+sMask;
 						}
 						if (bTestOnly) Output("#Masks changed: "+sTemp);
 					}
 					else if (sCommandLower=="removemask") {
-						if (sValue=="*") FolderLister.alMasks.Clear();
-						else FolderLister.alMasks.Remove(sValue);
+						if (sValue=="*") Common.alMasks.Clear();
+						else Common.alMasks.Remove(sValue);
 						string sTemp="";
-						foreach (string sMask in FolderLister.alMasks) {
+						foreach (string sMask in Common.alMasks) {
 							sTemp+=(sTemp==""?"":", ")+sMask;
 						}
 						if (bTestOnly) Output("#Masks changed: "+sTemp);
 					}
 					else if (sCommandLower=="exclude") {
-						FolderLister.alExclusions.Add(sValue);
+						Common.alExclusions.Add(sValue);
 						string sTemp="";
-						foreach (string sExclusion in FolderLister.alExclusions) {
+						foreach (string sExclusion in Common.alExclusions) {
 							sTemp+=(sTemp==""?"":", ")+sExclusion;
 						}
 						if (bTestOnly) Output("#Exclusions changed: "+sTemp);
 					}
 					else if (sCommandLower=="include") {
-						if (sValue=="*") FolderLister.alExclusions.Clear();
-						else FolderLister.alExclusions.Remove(sValue);
+						if (sValue=="*") Common.alExclusions.Clear();
+						else Common.alExclusions.Remove(sValue);
 						string sTemp="";
-						foreach (string sExclusion in FolderLister.alExclusions) {
+						foreach (string sExclusion in Common.alExclusions) {
 							sTemp+=(sTemp==""?"":", ")+sExclusion;
 						}
 						if (bTestOnly) Output("#Exclusions changed: "+sTemp);
@@ -1443,10 +1294,11 @@ namespace OrangejuiceElectronica {
 					else if (sCommandLower=="addfile") {
 						if (sValue!=null&&sValue!="") {
 							ArrayList alFiles=new ArrayList();
-							int iWild=sValue.IndexOf(SlashWildSlash);
+							int iWild=sValue.IndexOf(Common.SlashWildSlash);
+							DirectoryInfo diBranch=null;
 							if ((iWild>-1)&&(sValue.Length>iWild+3)) {
 								Output("Listing folders for wildcard \""+sValue+"\":");
-								DirectoryInfo diBranch=new DirectoryInfo(sValue.Substring(0,iWild+1));//+1 in case /*/ so that / will be used
+								diBranch=new DirectoryInfo(sValue.Substring(0,iWild+1));//+1 in case /*/ so that / will be used
 								foreach (DirectoryInfo diNow in diBranch.GetDirectories()) {
 									alFiles.Add( sValue.Substring(0,iWild+1)+diNow.Name+sValue.Substring(iWild+2) );
 									Output("  "+sValue.Substring(0,iWild+1)+diNow.Name+sValue.Substring(iWild+2));
@@ -1462,8 +1314,8 @@ namespace OrangejuiceElectronica {
 									ulByteCountTotal+=(ulong)fiSrc.Length;
 									//if (fiX.Exists())
 									ReconstructPathOnBackup(fiSrc.DirectoryName);
-									alFilesBackedUpManually.Add(ReconstructedBackupPath(fiSrc.DirectoryName)+sDirSep+fiSrc.Name);
-									BackupFile(sFileTheoretical,true);
+									alFilesBackedUpManually.Add(ReconstructedBackupPath(fiSrc.DirectoryName)+Common.sDirSep+fiSrc.Name);
+									if (!Common.IsExcludedFile(fiSrc.Directory,fiSrc)) BackupFile(sFileTheoretical,true);
 								}
 								else {
 									bCopyErrorLastRun=true;
@@ -1473,111 +1325,105 @@ namespace OrangejuiceElectronica {
 						}//end if sValue is not blank
 					}//end if sCommandLower=="addfile"
 					else if (sCommandLower=="addfolder") {
-						int iSlashWildSlash=sValue.IndexOf(SlashWildSlash);
+						int iSlashWildSlash=sValue.IndexOf(Common.SlashWildSlash);
 						if (iSlashWildSlash>-1) {
 							ArrayList alFoldersTheoretical=new ArrayList();
 							string BaseFolder_FullName=sValue.Substring(0,iSlashWildSlash);
 							DirectoryInfo diBase=new DirectoryInfo(BaseFolder_FullName);
-							string SpecifiedFolder_Name=sValue.Substring(iSlashWildSlash+SlashWildSlash.Length);
+							string SpecifiedFolder_Name=sValue.Substring(iSlashWildSlash+Common.SlashWildSlash.Length);
 							if (diBase.Exists) {
 								foreach (DirectoryInfo diNow in diBase.GetDirectories()) {
-									string FolderTheoretical_FullName=diBase.FullName+sDirSep+diNow.Name+sDirSep+SpecifiedFolder_Name;
-									if (FolderTheoretical_FullName.Contains(SlashWildSlash) //allow SlashWildSlash to allow recursive usage of SlashWildSlash
+									string FolderTheoretical_FullName=diBase.FullName+Common.sDirSep+diNow.Name+Common.sDirSep+SpecifiedFolder_Name;
+									if (FolderTheoretical_FullName.Contains(Common.SlashWildSlash) //allow Common.SlashWildSlash to allow recursive usage of Common.SlashWildSlash
 									    ||Directory.Exists(FolderTheoretical_FullName)) {
 										alFoldersTheoretical.Add(FolderTheoretical_FullName);
 									}
 								}
-								this.lbOut.Items.Add("Adding ("+alFoldersTheoretical.Count.ToString()+") folder(s) via wildcard "+SafeString(sValue,true)+"...");
+								this.lbOut.Items.Add("Adding ("+alFoldersTheoretical.Count.ToString()+") folder(s) via wildcard "+Common.SafeString(sValue,true)+"...");
 								Application.DoEvents();
+								int iNonExcludable=0;
+								int iWildcardsAdded=0;
 								foreach (string sFolderTheoretical in alFoldersTheoretical) {
-									RunScriptLine("AddFolder:"+sFolderTheoretical);
+									if (!sFolderTheoretical.Contains(Common.SlashWildSlash)) {
+										if (!Common.IsExcludedFolder(new DirectoryInfo(sFolderTheoretical))) {
+											RunScriptLine("AddFolder:"+sFolderTheoretical);
+											iNonExcludable++;
+										}
+									}
+									else {
+										RunScriptLine("AddFolder:"+sFolderTheoretical);
+										iWildcardsAdded++;
+									}
 								}
-								this.lbOut.Items.Add("Done adding ("+alFoldersTheoretical.Count.ToString()+") folder(s) via wildcard.");
+								if (iNonExcludable>0) this.lbOut.Items.Add("Done adding ("+iNonExcludable.ToString()+") folder(s) via wildcard and "+iWildcardsAdded.ToString()+" recursive wildcard folders.");
 							}
 							else {
-								this.lbOut.Items.Add("ERROR: Folder does not exist ("+SafeString(BaseFolder_FullName,true)+")--cannot add specified subfolder(s) via wildcard.");
+								this.lbOut.Items.Add("ERROR: Folder does not exist ("+Common.SafeString(BaseFolder_FullName,true)+")--cannot add specified subfolder(s) via wildcard.");
 							}
 						}
 						else {//alFoldersTheoretical.Add(sValue);
 						//foreach (string sFolderTheoretical in alFoldersTheoretical) {
-							flisterNow.sSearchRoot=sValue;
-							//string sDirSep=char.ToString(Path.DirectorySeparatorChar);
-							Output("Loading \""+flisterNow.sSearchRoot+"\""+(flisterNow.MaskCount>0?(" (only "+flisterNow.MasksToCSV()+")"):"")+"...");
+							string sSearchRoot=sValue;
+							//string Common.sDirSep=char.ToString(Path.DirectorySeparatorChar);
+							Output("Loading \""+sSearchRoot+"\""+(Common.MaskCount>0?(" (only "+Common.MasksToCSV()+")"):"")+"...");
 							//string sTempFile=Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)+"FolderList.tmp";
 							//FolderLister.SetOutputFile(sTempFile);
 							
-							if (bRealTime) {
-								btnCancel.Enabled=true;
-								//sVerb="getting directory info";
-								DirectoryInfo diRoot=new DirectoryInfo(flisterNow.sSearchRoot);
-								iDepth=-1;
-								bBusyCopying=true;
-								if (diRoot.Exists) BackupFolder(diRoot);
-								else {
-									Output("Folder cannot be read: "+diRoot.FullName);
-								}
-							}
-							else {
-								flisterNow.StartRecordingLines();
-								flisterNow.Start();
-								btnCancel.Enabled=true;
-								while (flisterNow.IsBusy) {
-									Thread.Sleep(500);
-									mainformNow.Refresh();
-									Application.DoEvents();
-								}
-								bBusyCopying=true;
-								Thread.Sleep(250);
-								if (FolderLister.alSkipped!=null&&FolderLister.alSkipped.Count>0) {
-									foreach (string sSkippedNow in FolderLister.alSkipped) {
-										alSkipped.Add(sSkippedNow);
-									}
-								}
-								string[] sarrListed=flisterNow.GetLines();
-								ulByteCountFolderNow=flisterNow.ByteCount;
-								ulByteCountTotal+=ulByteCountFolderNow;
-								ulByteCountFolderNowDone=0;
-								if (bTestOnly) Output("Getting ready to copy "+(ulByteCountFolderNow/1024/1024).ToString()+"MB...");
-								//iListedLines=0;
-								if (sarrListed!=null&&sarrListed.Length>0) {
-									//if (File.Exists(sTempFile)) {
-									//	StreamReader streamTemp=new StreamReader(sTempFile);
-									//	string sListedItem;
-									//	while ( (sListedItem=streamTemp.ReadLine()) != null ) {
-									foreach (string sListedItem in sarrListed) {
-										iListedLines++;
-										FileAttributes fileattribNow = File.GetAttributes(sListedItem);
-										//FileInfo fiNow=new FileInfo(sListedItem);
-										//if (fiNow.Attributes&FileAttributes.Directory
-										if ((fileattribNow & FileAttributes.Directory) == FileAttributes.Directory) {
-											ReconstructPathOnBackup(sListedItem);
-										}
-										else {
-											FileInfo fiX=new FileInfo(sListedItem);
-											if (fiX.Exists) ReconstructPathOnBackup(fiX.DirectoryName);
-											BackupFile(sListedItem,true);
-										}
-										if (bTestOnly) Output(sListedItem,true);
-										if (bUserCancelledLastRun||bDiskFullLastRun) break; //do NOT stop if Copy Error only
-									}
-									//	}
-									//	streamTemp.Close();
-									//	File.Delete(sTempFile);
-									//	Thread.Sleep(500);
-								}
-								else Output("Could not find any files in the added folder.");
-							}//else !bRealTime
-							bBusyCopying=false;
-							btnCancel.Enabled=false;
+							//if (bRealTime) {
+							menuitemCancel.Enabled=true;
+							//Common.sParticiple="getting directory info";
+							DirectoryInfo diRoot=new DirectoryInfo(sSearchRoot);
+							iDepth=-1;
+							//bBusyCopying=true;
+							if (diRoot.Exists) BackupFolder(diRoot);
+							//else {
+							//	Output("Folder cannot be read: "+diRoot.FullName);
+							//}
+							//}
+							//bBusyCopying=false;
+							menuitemCancel.Enabled=false;
+							//else {
+							//	menuitemCancel.Enabled=true;
+								
+							//	string[] sarrListed=flisterNow.GetLines();
+							//	ulByteCountFolderNow=flisterNow.ByteCount;
+							//	ulByteCountTotal+=ulByteCountFolderNow;
+							//	ulByteCountFolderNowDone=0;
+							//	if (bTestOnly) Output("Getting ready to copy "+(ulByteCountFolderNow/1024/1024).ToString()+"MB...");
+							//	//iListedLines=0;
+							//	//if (sarrListed!=null&&sarrListed.Length>0) {
+							//		//if (File.Exists(sTempFile)) {
+							//		//	StreamReader streamTemp=new StreamReader(sTempFile);
+							//		//	string sListedItem;
+							//		//	while ( (sListedItem=streamTemp.ReadLine()) != null ) {
+							//		sLastFileUsed=diRoot.FullName;
+							//		bContinue=true;
+							//		BackupTree(diRoot);
+							//		bContinue=false;
+							//		//	}
+							//		//	streamTemp.Close();
+							//		//	File.Delete(sTempFile);
+							//		//	Thread.Sleep(500);
+							//	//}
+							//	//else Output("Could not find any files in the added folder.");
+							//	if (iFileCount<=0) Output("Could not find any files in the added folder.");
+							//	//if (CurrentFolder_alSkippedDueToException!=null&&CurrentFolder_alSkippedDueToException.Count>0) {
+							//	//	foreach (string sSkippedNow in CurrentFolder_alSkippedDueToException) {
+							//	//		alSkippedDueToException.Add(sSkippedNow);
+							//	//	}
+							//	//	CurrentFolder_alSkippedDueToException.Clear();
+							//	//}
+							//}//else !bRealTime
 						}
 					}//end if sCommandLower==addfolder
 					else if (sCommandLower=="loadprofile") {
-						this.btnEditScript.Enabled=false;
-						this.btnEditMain.Enabled=false;
+						Common.iDebugLevel=Common.DebugLevel_Mega;//debug only
+						this.menuitemEditScript.Enabled=false;
+						this.menuitemEditMain.Enabled=false;
 						Console.Error.Write("LoadProfile...");
 						Console.Error.Flush();
 						BackupProfileFolder_FullName=".";
-						string BackupProfileFolder_FullName_TEMP="."+sDirSep+"profiles"+sDirSep+sValue;
+						string BackupProfileFolder_FullName_TEMP="."+Common.sDirSep+"profiles"+Common.sDirSep+sValue;
 						Console.Error.Write("checking \"" + BackupProfileFolder_FullName_TEMP + "\"...");
 						Console.Error.Flush();
 						if (Directory.Exists(BackupProfileFolder_FullName_TEMP)) {
@@ -1585,122 +1431,53 @@ namespace OrangejuiceElectronica {
 							Console.Error.Flush();
 							DirectoryInfo diProfileX = new DirectoryInfo(BackupProfileFolder_FullName_TEMP);
 							BackupProfileFolder_FullName = diProfileX.FullName;
-							this.btnEditScript.Enabled=true;
-							this.btnEditMain.Enabled=true;
-							alInvalidDrives.Clear();
-							alExtraDestinations.Clear();
-							RunScript(BackupProfileFolder_FullName + sDirSep + MainFile_Name); //excludes and adds destinations
-							if (File.Exists(BackupProfileFolder_FullName + sDirSep + LogFile_Name)) RunScript(BackupProfileFolder_FullName + sDirSep + LogFile_Name); //excludes and adds destinations
+							this.menuitemEditScript.Enabled=true;
+							this.menuitemEditMain.Enabled=true;
+							Common.ClearInvalidDrives();
+							Common.ClearExtraDestinations();
+							RunScript(BackupProfileFolder_FullName + Common.sDirSep + MainFile_Name); //excludes and adds destinations
+							if (File.Exists(BackupProfileFolder_FullName + Common.sDirSep + LogFile_Name)) RunScript(BackupProfileFolder_FullName + Common.sDirSep + LogFile_Name); //excludes and adds destinations
 							bLoadedProfile=true;
-	
+							Common.UpdateSelectableDrivesAndPseudoRoots(true);
+							Common.sParticiple="finished updating Drives and PseudoRoots";
+							if (Common.bMegaDebug) {
+								Console_Error_WriteLine_AllDebugInfo();
+							}
+							alPseudoRootsNow=Common.PseudoRoots_DriveRootFullNameThenSlash_ToArrayList();
+							
 							comboDest.BeginUpdate();
 							comboDest.Items.Clear();
-							//string[] sarrDrive=Environment.GetLogicalDrives();
-							//foreach (string sDrivePathNow in sarrDrive) {
-							//	if (ValidDest(sDrivePathNow)) {
-							//		comboDest.Items.Add(sDrivePathNow);
-							//		iValidDrivesFound++;
-							//		iDestinations++;
-							//	}
-							//}
-							iDestinations = 0;
-							iLocations = 0;
-							iValidDrivesFound = 0;
-	
-							DriveInfo[] driveinfoarrAbsolute = null;
-							driveinfoarrAbsolute = Chunker.GetLogicalDrivesInfo();//DriveInfo.GetDrives();
-							if (driveinfoarrAbsolute != null && driveinfoarrAbsolute.Length > 0) {
-								driveinfoarrNow = new DriveInfo[driveinfoarrAbsolute.Length];
-								for (int iAbsolute = 0; iAbsolute < driveinfoarrAbsolute.Length; iAbsolute++) {//foreach (DriveInfo driveinfoNow in DriveInfo.GetDrives()) {
-									if (driveinfoarrAbsolute[iAbsolute] != null && driveinfoarrAbsolute[iAbsolute].IsReady) {
-										if (ValidDest(driveinfoarrAbsolute[iAbsolute].RootDirectory.FullName)
-											 && ((driveinfoarrAbsolute[iAbsolute].VolumeLabel == "") || (ValidDest(driveinfoarrAbsolute[iAbsolute].VolumeLabel))))
-										{
-											//comboDest.Items.Add(driveinfoarrAbsolute[iAbsolute].RootDirectory.FullName);
-											//TODO: use AddLocation (?)
-											driveinfoarrNow[iValidDrivesFound] = driveinfoarrAbsolute[iAbsolute];
-											locinfoarr[iLocations] = new LocInfo();
-											locinfoarr[iLocations].VolumeLabel = driveinfoarrAbsolute[iAbsolute].VolumeLabel;
-											locinfoarr[iLocations].TotalSize = driveinfoarrAbsolute[iAbsolute].TotalSize;
-											locinfoarr[iLocations].AvailableFreeSpace = driveinfoarrAbsolute[iAbsolute].AvailableFreeSpace;
-											locinfoarr[iLocations].DriveRoot_FullNameThenSlash = LocalFolderThenSlash(driveinfoarrAbsolute[iAbsolute].RootDirectory.FullName);
-											iLocations++;
-											iValidDrivesFound++;
-											iDestinations++;
-										}
-									}
-								}
-								if (iDestinations > 0) {
-									DriveInfo[] driveinfoarrOld = driveinfoarrNow;
-									driveinfoarrNow = new DriveInfo[iDestinations];
-									int iOld = 0;
-									for (int iNow = 0; iNow < iDestinations; iNow++)
-									{
-										driveinfoarrNow[iNow] = driveinfoarrOld[iOld];
-										iOld++;
-									}
-								}
-								else driveinfoarrNow = null;
-							}//end if found any volumes on computer
-	
-							/* <http://codeidol.com/csharp/csharpckbk2/Filesystem-I-O/Querying-Information-for-All-Drives-on-a-System/> 2008-10-27
-							foreach (DriveInfo drive in DriveInfo.GetDrives()) {
-								if (drive.IsReady) {
-									Console.WriteLine("Drive " + drive.Name + " is ready.");
-									Console.WriteLine("AvailableFreeSpace: " + drive.AvailableFreeSpace);
-									Console.WriteLine("DriveFormat: " + drive.DriveFormat);
-									Console.WriteLine("DriveType: " + drive.DriveType);
-									Console.WriteLine("Name: " + drive.Name);
-									Console.WriteLine("RootDirectory.FullName: " +
-											drive.RootDirectory.FullName);
-									Console.WriteLine("TotalFreeSpace: " + drive.TotalFreeSpace);
-									Console.WriteLine("TotalSize: " + drive.TotalSize);
-									Console.WriteLine("VolumeLabel: " + drive.VolumeLabel);
-								}
-								else {
-										Console.WriteLine("Drive " + drive.Name + " is not ready.");
-								}
-							}
-							*/
-							foreach (string sExtraDest in alExtraDestinations) {
-								//comboDest.Items.Add(LocalFolderThenSlash(sExtraDest));
-								AddLocation(sExtraDest);
-								iDestinations++;
-							}
-							if (Directory.Exists("/Volumes")) {
-								DirectoryInfo diMedia = new DirectoryInfo("/Volumes");
-								foreach (DirectoryInfo diNow in diMedia.GetDirectories()) {
-									if ((diNow.Attributes & FileAttributes.ReadOnly) != FileAttributes.ReadOnly) {
-										if (ValidDest(diNow.FullName)) {
-											AddLocation(diNow.FullName);
-											iValidDrivesFound++;
-										}
-									}
-								}
-							}
 							//comboDest.Items.Clear();//already done above
-							for (int iNow = 0; iNow < iLocations; iNow++) {
-								comboDest.Items.Add(LocalFolderThenSlash(locinfoarr[iNow].DriveRoot_FullNameThenSlash) + DestSuffixOnlyThenSlash);
+							foreach (string sNow in alPseudoRootsNow) {
+								comboDest.Items.Add(Common.LocalFolderThenSlash(sNow) 
+								                 + DestSubfolderRelNameThenSlash);
 							}
-	
 							comboDest.EndUpdate();
-	
-	
+							
 							//FolderLister.Echo("Test");
-							string sMsg = "No backup drive can be found.  Try connecting the drive and then try again.";
-							if (iLocations > 0) {//iValidDrivesFound+iDestinations>0) {
-								if (bExitIfNoUsableDrivesFound && iValidDrivesFound == 0) {
+							alSelectableDrives=Common.SelectableDrives_DriveRootFullNameThenSlash_ToArrayList();
+							string sMsg="(unknown error while listing usable destinations in RunScriptLine)";
+							if (alPseudoRootsNow!=null && alPseudoRootsNow.Count > 0) {//iSelectableDrives+iDestinations>0) {
+								if (bExitIfNoUsableDrivesFound && alSelectableDrives.Count == 0) {
+									sMsg = "No usable backup drives can be found.  Try connecting the drive and then try again.";
+									Console.Error.WriteLine(sMsg);
+									if (Common.bDebug) Console_Error_WriteLine_AllDebugInfo();
 									MessageBox.Show(sMsg);
 								}
 								comboDest.SelectedIndex = 0;
 							}
 							else {
+								sMsg= "No backup drive can be found.  Try connecting the drive and then try again.";
+								Console.Error.WriteLine(sMsg);
 								MessageBox.Show(sMsg);
+								if (Common.bDebug) Console_Error_WriteLine_AllDebugInfo();
 							}
 							this.lblProfile.Text="Profile: "+sValue;
 						}//end if profile folder exists
 						else {
-							MessageBox.Show("Unable to open profile \"" + sValue + "\"!");
+							string sMsg="Unable to open profile \"" + sValue + "\"!";
+							Console.Error.WriteLine(sMsg);
+							MessageBox.Show(sMsg);
 						}
 					}//end if (sCommandLower=="LoadProfile")
 					else if (sCommandLower=="ulbytecounttotalprocessed") {
@@ -1717,7 +1494,7 @@ namespace OrangejuiceElectronica {
 						Output("Test mode turned "+(bTestOnly?"on":"off")+"."+(bTestOnly?"  No files will be copied.":""));
 					}
 					else if (sCommandLower=="destsubfolder") {
-						DestSuffixOnlyThenSlash=LocalFolderThenSlash(sValue);
+						DestSubfolderRelNameThenSlash=Common.LocalFolderThenSlash(sValue);
 					}
 					else {
 						Console.Error.WriteLine("Unknown Command!: "+sCommandLower+":"+sValue);
@@ -1728,212 +1505,360 @@ namespace OrangejuiceElectronica {
 				}//end if has ":" in right place
 			}
 			catch (Exception exn) {
-				ShowExn(exn,"parsing line "+SafeString(sLine,true)+" {iLine+1:"+(iLine+1).ToString()+"; aka--offset:"+iLine+"}");
+				Common.ShowExn(exn,"parsing line "+Common.SafeString(sLine,true)+" {iLine+1:"+(iLine+1).ToString()+"; aka--offset:"+iLine+"}");
 				iCouldNotFinish++;
 			}
 			return bGood;
 		}//end RunScriptLine
 		
-		void BtnEditScriptClick(object sender, EventArgs e)
-		{
-			try {
-				DialogResult dlgresult=MessageBox.Show(LimitedWidth(ScriptFile_Name +" must be saved before returning to "+sMyName+" and pressing \"Go\" in order for any changes you make to take effect.",40,"\n",true), sMyName, MessageBoxButtons.OKCancel);
-				if (dlgresult==DialogResult.OK) System.Diagnostics.Process.Start(BackupProfileFolder_FullName+sDirSep+ScriptFile_Name);
-			}
-			catch (Exception exn) {
-				ShowExn(exn,"opening \""+ScriptFile_Name+"\" in profile","BtnEditScriptClick");
-			}
-		}
-		public static bool IsNotBlank(string sNow) {
-			return sNow!=null&&sNow.Length>0;
-		}
-		public static void ShowExn(Exception exn) {
-			ShowExn(exn,"");
-		}
-		public static void ShowExn(Exception exn, string sParticiple) {
-			ShowExn(exn,sParticiple,"");
-		}
-		public static void ShowExn(Exception exn, string sParticiple, string sMethodName) {
-			Console.Error.WriteLine();
-			string sMsg="Could not finish";
-			if (IsNotBlank(sParticiple)) sMsg+=" "+sParticiple;
-			if (IsNotBlank(sMethodName)) sMsg+=" in "+sMethodName;
-			Output(sMsg,true);
-			Console.Error.WriteLine(sMsg);
-			if (exn!=null) Console.Error.WriteLine(exn.ToString());
-			else Console.Error.WriteLine(" exn is null so no further information can be displayed");
-		}
-		public static bool Contains(char[] Haystack, char Needle) {
-			bool bReturn=false;
-			if (Haystack!=null) {
-				for (int iTest=0; iTest<Haystack.Length; iTest++) {
-					if (Needle==Haystack[iTest]) {
-						bReturn=true;
-						break;
-					}
-				}
-			}
-			return bReturn;
+		void Console_Error_WriteLine_AllDebugInfo() {
+			Console.Error.WriteLine("{\n PseudoRoot entry count:"+Common.GetPseudoRoots_EntriesCount().ToString()
+									+";\n PseudoRoot non-null entries:"+Common.GetPseudoRoots_CountNonNull(false).ToString()
+									+";\n PseudoRoot non-null entries including entries past end:"+Common.GetPseudoRoots_CountNonNull(true).ToString()
+									+";\n PseudoRoot Array"+Common.GetPseudoRootArrayMsg_LengthColonCount_else_ColonNull()
+									+";\n SafeCount(alSelectableDrives):"+Common.SafeCount(alSelectableDrives).ToString()
+									+";\n SafeCount(alPseudoRootsNow):"+Common.SafeCount(alPseudoRootsNow).ToString()
+									+";\n Selectable Drive Array"+Common.GetSelectableDriveArrayMsg_LengthColonCount_else_ColonNull()
+									+";\n Selectable Drive entries:"+Common.GetSelectableDriveMsg_EntriesCount().ToString()
+									+";\n Selectable Drive non-null entries:"+Common.GetSelectableDrives_CountNonNull(false).ToString()
+									+";\n Selectable Drive non-null entries including entries past end:"+Common.GetSelectableDrives_CountNonNull(true).ToString()
+									+";\n Invalid Destinations ArrayList:"+Common.ToString(Common.GetInvalidDrivesList(),"   ")
+								+"\n}");
+	
 		}
 		
-		public static int MoveBackToOrStayAt(string Haystack, char Needle, int FindBeforeAndIncludingIndex) {
-			int iFound=-1;
-			if (Haystack!=null&&FindBeforeAndIncludingIndex>=0&&FindBeforeAndIncludingIndex<Haystack.Length) {
-				for (int iChar=FindBeforeAndIncludingIndex; iChar>-1; iChar--) {
-					if (Haystack[iChar]==Needle) {
-						iFound=iChar;
-						break;
-					}
-				}
-			}
-			return iFound;
-		}//end MoveBackToOrStayAt
-		public static int MoveBackToOrStayAtAny(string Haystack, char[] Needles, int FindBeforeAndIncludingIndex) {
-			int iFound=-1;
-			if (Haystack!=null&&FindBeforeAndIncludingIndex>=0&&FindBeforeAndIncludingIndex<Haystack.Length) {
-				for (int iChar=FindBeforeAndIncludingIndex; iChar>-1; iChar--) {
-					if (Contains(Needles,Haystack[iChar])) {//inentionally find haystack char in needles
-						iFound=iChar;
-						break;
-					}
-				}
-			}
-			return iFound;
-		}//end MoveBackToOrStayAtAny
-		public static string SafeSubstring(string AllText, int start) {
-			string sReturn="";
-			int length=0;
-			int startOrig=start;
-			try {
-				if (AllText!=null) {
-					if (start<0) {
-						Console.Error.WriteLine("Warning: start is negative in SafeSubstring(AllText.Length="+AllText.Length.ToString()+",start="+startOrig.ToString()+")");
-						start=0;
-					}
-					else if (start>=AllText.Length) {
-						Console.Error.WriteLine("Warning: start is beyond range in SafeSubstring(AllText.Length="+AllText.Length.ToString()+",start="+startOrig.ToString()+")");
-						start=AllText.Length; //ok since checked by SafeString primary overload
-					}
-					length=AllText.Length-start;
-					if (start+length>AllText.Length) {
-						Console.Error.WriteLine("Warning: SafeSubstring(AllText.Length="+AllText.Length.ToString()+",start="+startOrig.ToString()+")");
-						length=AllText.Length-start;
-					}
-					sReturn=SafeSubstring(AllText,start,length);
-				}
-				else Console.Error.WriteLine("Warning: SafeSubstring(AllText=null,start="+startOrig.ToString()+")");
-			}
-			catch (Exception exn) {
-				ShowExn(exn,"getting substring","SafeSubstring(AllText=null,start="+startOrig.ToString()+")");
-			}
-			return sReturn;
-		}//end SafeSubstring
-		public static string SafeSubstring(string AllText, int start, int length) {
-			string sReturn="";
-			int startOrig=start;
-			int lengthOrig=length;
-			try {
-				if (AllText!=null) {
-					if (start<0) {
-						Console.Error.WriteLine("Warning: start is negative in SafeSubstring(AllText.Length="+AllText.Length.ToString()+",start="+startOrig.ToString()+",length="+lengthOrig.ToString()+")");
-						start=0;
-					}
-					else if (start>=AllText.Length) {
-						Console.Error.WriteLine("Warning: start is beyond range in SafeSubstring(AllText.Length="+AllText.Length.ToString()+",start="+startOrig.ToString()+",length="+lengthOrig.ToString()+")");
-						start=AllText.Length; //ok since checked by final if clause
-					}
-					if (start+length>AllText.Length) {
-						Console.Error.WriteLine("Warning: SafeSubstring(AllText.Length="+AllText.Length.ToString()+",start="+startOrig.ToString()+",length="+lengthOrig.ToString()+")");
-						length=AllText.Length-start;
-					}
-					if (length>0) {
-						sReturn=AllText.Substring(start,length);
-					}
-					else Console.Error.WriteLine("Warning: returning blank in SafeSubstring(AllText.Length="+AllText.Length.ToString()+",start="+startOrig.ToString()+",length="+lengthOrig.ToString()+")");
-				}
-				else Console.Error.WriteLine("Warning: null string sent to SafeSubstring(AllText=null,start="+startOrig.ToString()+",length="+lengthOrig.ToString()+")");
-			}
-			catch (Exception exn) {
-				ShowExn(exn,"getting substring","SafeSubstring(AllText=null,start="+startOrig.ToString()+",length="+lengthOrig.ToString()+")");
-			}
-			return sReturn;
-		}//end SafeSubstring
-		/// <summary>
-		/// Keeps width limited to LineWidth characters and returns the result with LineDelimiter added where needed
-		/// </summary>
-		/// <param name="AllText"></param>
-		/// <param name="LineWidth"></param>
-		/// <param name="LineDelimiter"></param>
-		/// <returns></returns>
-		public static string LimitedWidth(string AllText, int LineWidth, string LineDelimiter,bool KeepTrailingSpaceOnNextLine_FalseRemovesIt) { //Aka WrapText aka AutoWrap aka StringWrap
-			string sReturn="";
-			try {
-				if (LineWidth<1) LineWidth=1;
-				int iStartNow=0;
-				string AllTextSparse=AllText;//debug only
-				int iSparsenAt=AllText.Length;//debug only
-				while (iSparsenAt>=0) {
-					AllTextSparse=AllTextSparse.Insert(iSparsenAt," ["+iSparsenAt.ToString()+"]");
-					if (iSparsenAt==AllText.Length) iSparsenAt=(((int)(iSparsenAt/10))*10)-10;
-					else iSparsenAt-=10;
-				}
-				Console.Error.WriteLine();
-				Console.Error.WriteLine();
-				Console.Error.WriteLine(AllText);//debug only
-				Console.Error.WriteLine(AllTextSparse);//debug only
-				while (iStartNow<AllText.Length) {
-					if (iStartNow+LineWidth>=AllText.Length) {
-						Console.Error.WriteLine();
-						sReturn+=((sReturn!="")?LineDelimiter:"") + SafeSubstring(AllText,iStartNow);
-						Console.Error.WriteLine("SafeSubstring(AllText,"+iStartNow.ToString()+")");//debug only
-						Console.Error.WriteLine(SafeSubstring(AllText,iStartNow));
-						iStartNow=iStartNow+LineWidth;
-						break;
-					}
-					else {
-						int iPrevBreakBeforeAndDiscard=MoveBackToOrStayAt(AllText,' ',iStartNow+LineWidth);//intentionally uses index past end (endbfore) for start
-						int iPrevBreakAfter=MoveBackToOrStayAtAny(AllText,carrBreakAfter,iStartNow+LineWidth-1);//intentionally uses last character (endbefore-1) for start
-						if (iPrevBreakBeforeAndDiscard>-1||iPrevBreakAfter>-1) {
-							if (iPrevBreakBeforeAndDiscard>iPrevBreakAfter) {
-								Console.Error.WriteLine();
-								sReturn+=((sReturn!="")?LineDelimiter:"") + SafeSubstring(AllText,iStartNow,iPrevBreakBeforeAndDiscard-iStartNow);
-								Console.Error.WriteLine("SafeSubstring(AllText,"+iStartNow.ToString()+","+(iPrevBreakBeforeAndDiscard-iStartNow).ToString()+")",true);//debug only
-								Console.Error.WriteLine(SafeSubstring(AllText,iStartNow,iPrevBreakBeforeAndDiscard-iStartNow));
-								if (KeepTrailingSpaceOnNextLine_FalseRemovesIt) iStartNow=iPrevBreakBeforeAndDiscard;
-								else iStartNow=iPrevBreakBeforeAndDiscard+1;//+1 discards the character e.g. ' '
-							}
-							else {
-								Console.Error.WriteLine();
-								sReturn+=((sReturn!="")?LineDelimiter:"") + SafeSubstring(AllText,iStartNow,iPrevBreakAfter+1-iStartNow);
-								Console.Error.WriteLine("SafeSubstring(AllText,"+iStartNow.ToString()+","+(iPrevBreakAfter+1-iStartNow).ToString()+")",true);//debug only
-								Console.Error.WriteLine(SafeSubstring(AllText,iStartNow,iPrevBreakAfter+1-iStartNow));
-								iStartNow=iPrevBreakAfter+1;//+1 discards the character e.g. ' '
-							}
-						}
-						else {//else no breaks, so force break at LineWidth
-							Console.Error.WriteLine();
-							sReturn+=((sReturn!="")?LineDelimiter:"") + SafeSubstring(AllText,iStartNow,iStartNow+LineWidth-iStartNow);
-							Output("SafeSubstring(AllText,"+iStartNow.ToString()+","+(iStartNow+LineWidth-iStartNow).ToString()+")",true);//debug only
-							Output(SafeSubstring(AllText,iStartNow,iStartNow+LineWidth-iStartNow),true);
-							iStartNow=iStartNow+LineWidth;
-						}
-					}//end else more than one line of text remains
-				}//end while iStartNow<AllText.Length
-			}
-			catch (Exception exn) {
-				ShowExn(exn,"limiting width");
-			}
-			return sReturn;
+		void TableLayoutPanel1Paint(object sender, PaintEventArgs e) {
+			
 		}
-		void BtnEditMainClick(object sender, EventArgs e)
-		{
+		
+		void MenuitemGoClick(object sender, EventArgs e) {
+			if (this.comboDest.Text!="") {
+				menuitemGo.Enabled=false;
+				menuitemEditMain.Enabled=false;
+				menuitemEditScript.Enabled=false;
+				menuitemHelp_ViewOutputOfLastRun.Enabled=false;
+				bUserCancelledLastRun=false;
+				bCopyErrorLastRun=false;
+				bDiskFullLastRun=false;
+				//iFilesTooBigToFitLastRun//bFileTooBigToFitLastRun=false;
+				bool bGood=true;
+				
+				//if (!FixSlashes()) bGood=false;
+				if (!SetDestFolder(comboDest.Text)) bGood=false;
+				if (bDeleteFilesNotOnSource_BeforeBackup) {
+					string sDestPrefix=Common.LocalFolderThenSlash(DestFolder_FullName)+DestSubfolderRelNameThenSlash;
+					if (sDestPrefix.Length>1&&sDestPrefix.EndsWith(Common.sDirSep)) sDestPrefix=sDestPrefix.Substring(0,sDestPrefix.Length-1);
+					//TODO: DeleteIfNotOnSource_Recursively(sDestPrefix);
+					//TODO: MessageBox.Show("Reconstructed source \""+sReturn+"\" "+((Directory.Exists(sReturn))?"exists":"does not exist"));
+				}
+				
+				if (ulByteCountTotalProcessed_LastRun>0) {
+					//mainformNow.progressbarMain.Style=ProgressBarStyle.Continuous; //should be already set
+				}
+				else {
+					mainformNow.progressbarMain.Style=ProgressBarStyle.Marquee;
+				}
+				if (!RunScript(MainForm.BackupProfileFolder_FullName+Common.sDirSep+ScriptFile_Name)) bGood=false;
+				if (mainformNow.progressbarMain.Style==ProgressBarStyle.Marquee) {
+					mainformNow.progressbarMain.Style=ProgressBarStyle.Continuous;
+					mainformNow.progressbarMain.Value=bGood?mainformNow.progressbarMain.Maximum:(mainformNow.progressbarMain.Maximum/2);
+				}
+				
+				Output((ulByteCountTotalProcessed/1024/1024/1024).ToString()+"GB = "+(ulByteCountTotalProcessed/1024/1024).ToString()+"MB = "+(ulByteCountTotalProcessed/1024).ToString()+"KB = "+ulByteCountTotalProcessed.ToString()+"bytes of "+(ulByteCountTotal/1024/1024).ToString()+"MB source data finished, "+(ulByteCountTotalActuallyCopied/1024/1024).ToString()+"MB difference copied).",true);
+				try {
+					if (bGood&&!MainForm.bUserCancelledLastRun) {
+						Output("Opening log \""+BackupProfileFolder_FullName + Common.sDirSep + LogFile_Name+"\"",true);
+						StreamWriter streamOut=new StreamWriter(BackupProfileFolder_FullName + Common.sDirSep + LogFile_Name);
+						Output("Writing log (statistics)...",true);
+						streamOut.WriteLine("ulByteCountTotalProcessed:"+ulByteCountTotalProcessed.ToString());
+						streamOut.Close();
+						Output("Writing log (statistics)...OK ("+LogFile_Name+")",true);
+					}
+				}
+				catch (Exception exn) {
+					Console.Error.WriteLine();
+				}
+				int iMessages=0;
+				if (!bGood) {
+					lbOut.Items.Add("Some files may be system files and are not required to be backed up.  RunScript failed.");
+					iMessages++;
+					Application.DoEvents();
+					WriteLastRunLog();
+					menuitemHelp_ViewOutputOfLastRun.Enabled=true;
+					FileInfo fiSaved=new FileInfo(sLastRunLog);
+					//DialogResult dlgresultNow=MessageBox.Show("Finished.\n\nLog ("+iMessages.ToString()+" message(s)) saved to \""+fiSaved.FullName+"\"\n\n  Do you wish to to review the list?","Result", MessageBoxButtons.YesNo);
+					MessageBox.Show("Finished.\n\nLog ("+iMessages.ToString()+" message(s)) saved to \""+fiSaved.FullName+"\"",sMyName);//DialogResult dlg=MessageBox.Show(sFileList+"\n\n  Do you wish to to review the list (press cancel to exit)?","Result", MessageBoxButtons.OKCancel);
+					//if (dlgresultNow==DialogResult.Yes) {
+					//	System.Diagnostics.Process.Start(sLastRunLog);
+					//}
+					
+					this.menuitemGo.Enabled = true;
+				}
+				else {
+					if (bUserCancelledLastRun) {
+						MessageBox.Show("Cancelled Backup.");
+					}
+					else if (bDiskFullLastRun) {
+						string sMsg="Destination drive could not fit all files - Could not finish";
+						lbOut.Items.Add(sMsg);
+						Application.DoEvents();
+						iMessages++;
+						MessageBox.Show(sMsg);
+					}
+					else if (bCopyErrorLastRun) {
+						int iActualNamesFound=0;
+						//string sFileList="";
+						string FileNow_FullName;
+						string FileNow_Name;
+						string FileNow_Directory_FullName;
+						if (alCopyError!=null&&alCopyError.Count>0) {
+							iMessages=alCopyError.Count;
+							foreach (string sCopyErrorNow in alCopyError) {
+								if (sCopyErrorNow!=null&&sCopyErrorNow!="") {
+									if (iActualNamesFound>=iMaxCopyErrorsToShow) {
+										//sFileList+="\n(there are more errors but this list has been limited to "+iMaxCopyErrorsToShow.ToString()+")";
+										break;
+									}
+									int iFileFullNameStart=sCopyErrorNow.IndexOf(sCopyErrorFileFullNameOpener);
+									int iCopyErrorEnder=iFileFullNameStart;
+									int iFileFullNameEnder=sCopyErrorNow.IndexOf(sCopyErrorFileFullNameCloser);
+									if (iFileFullNameStart>-1) {
+										iFileFullNameStart+=sCopyErrorFileFullNameOpener.Length;
+										if (iFileFullNameEnder>-1) FileNow_FullName=sCopyErrorNow.Substring(iFileFullNameStart,(iFileFullNameEnder-iFileFullNameStart));
+										else FileNow_FullName=sCopyErrorNow.Substring(iFileFullNameStart);
+									}
+									else FileNow_FullName="";
+									while (FileNow_FullName.EndsWith(Common.sDirSep)) {
+										if (FileNow_FullName==Common.sDirSep) break;
+										else FileNow_FullName=FileNow_FullName.Substring(0,FileNow_FullName.Length-1);
+									}
+									int iLastSlash=FileNow_FullName.LastIndexOf(Common.sDirSep);
+									if (iLastSlash>=0) {
+										if (FileNow_FullName==Common.sDirSep) {
+											FileNow_Name="(root filesystem)";
+											FileNow_Directory_FullName="/";
+										}
+										else {
+											FileNow_Name=FileNow_FullName.Substring(iLastSlash+1);
+											if (iLastSlash==0) FileNow_Directory_FullName=FileNow_FullName.Substring(0,1);
+											else FileNow_Directory_FullName=FileNow_FullName.Substring(0,iLastSlash);
+										}
+										if (FileNow_Name=="") FileNow_Name="(unknown file)";
+										if (FileNow_Directory_FullName=="") FileNow_Directory_FullName="(unknown location)";
+										//sFileList+=" \n"+FileNow_Name+" in "+FileNow_Directory_FullName;
+										//if (iCopyErrorEnder>0) sFileList+=" *"+sCopyErrorNow.Substring(0,iCopyErrorEnder);//intentionally iCopyErrorEnder>0 so that it is ignored if ender is at location zero
+									}
+									else {
+										FileNow_Name="";
+										FileNow_Directory_FullName="";
+										//if (FileNow_FullName!="") sFileList+=" \n"+FileNow_FullName;
+										//else sFileList+=" \n"+"(?)";
+									}
+									
+									//if (sFileList=="") sFileList="Copy Error while attempting to backup the following files: ";
+									iActualNamesFound++;
+								}//end if copy error string !=null
+							}//end for each sCopyError in alCopyError
+						}
+						else {
+							//if (sFileList=="") {
+								lbOut.Items.Add("Unknown copy error.");
+								iMessages++;
+								Application.DoEvents();
+								//sFileList="Copy error: could not copy "+alCopyError.Count.ToString()+" file"+((alCopyError.Count!=1)?"s":"")+".";
+								
+							//}
+						}
+						//MessageBox.Show(sFileList);
+						
+						WriteLastRunLog();
+						FileInfo fiSaved=new FileInfo(sLastRunLog);
+						MessageBox.Show("Finished Backup.\n\nLog ("+iMessages.ToString()+" message(s)) saved to \""+fiSaved.FullName+"\"",sMyName);//DialogResult dlg=MessageBox.Show(sFileList+"\n\n  Do you wish to to review the list (press cancel to exit)?","Result", MessageBoxButtons.OKCancel);
+						//if (dlg==DialogResult.OK) bUserSaysStayOpen=true;
+						//else
+							bUserSaysStayOpen=false;
+					}//end if bCopyErrorLastRun
+					else {
+						WriteLastRunLog();
+						FileInfo fiSaved=new FileInfo(sLastRunLog);
+						if (iMessages<=0) MessageBox.Show("Finished Backup.");//\n\nLog saved to \""+fiSaved.FullName+"\"",sMyName);
+						else MessageBox.Show("Finished Backup.\n\nLog ("+iMessages.ToString()+" message(s)) saved to \""+fiSaved.FullName+"\"",sMyName);
+					}
+					if ((bCopyErrorLastRun&&!bUserSaysStayOpen) || !bTestOnly && !bAlwaysStayOpen)
+						Application.Exit(); // && !bCopyErrorLastRun
+				}//end else bGood
+				menuitemEditMain.Enabled=true;
+				menuitemEditScript.Enabled=true;
+			}
+			else {
+				MessageBox.Show(Common.LimitedWidth("No destination drive is present.  Connect a flash drive, external hard drive, or other backup media and open the "+sMyName+" icon again.",40,"\n",true));
+			}			
+		}//end MenuitemGoClick
+		
+		void WriteLastRunLog(string sOnlyDateAndThisText) {
 			try {
-				DialogResult dlgresult=MessageBox.Show(LimitedWidth("In order for any changes you make to take effect, you must close "+MainFile_Name+", close "+sMyName+" then open the "+sMyName+" icon again.",40,"\n",true), sMyName, MessageBoxButtons.OKCancel);
-				if (dlgresult==DialogResult.OK) System.Diagnostics.Process.Start(BackupProfileFolder_FullName+sDirSep+MainFile_Name);
+				StreamWriter streamOut=new StreamWriter(sLastRunLog);
+				DateTime dtNow=DateTime.Now;
+				streamOut.WriteLine("# "+sMyNameAndVersion+" (early-quit message only) "+dtNow.Year+"-"+dtNow.Month+"-"+dtNow.Day+" "+dtNow.Hour+":"+dtNow.Minute+":"+dtNow.Second);
+				streamOut.WriteLine(sOnlyDateAndThisText);
+				streamOut.Close();
 			}
 			catch (Exception exn) {
-				ShowExn(exn,"opening "+SafeString(MainFile_Name,true)+" for profile","BtnEditMainClick");
+				Console.Error.WriteLine();
+				Console.Error.WriteLine("Could not finish :"+exn.ToString());
 			}
+		}
+		void WriteLastRunLog() {
+			try {
+				StreamWriter streamOut=new StreamWriter(sLastRunLog);
+				DateTime dtNow=DateTime.Now;
+				streamOut.WriteLine("# "+sMyNameAndVersion+"  "+dtNow.Year+"-"+dtNow.Month+"-"+dtNow.Day+" "+dtNow.Hour+":"+dtNow.Minute+":"+dtNow.Second);
+				//streamOut.WriteLine("Could not copy:");
+				//streamOut.WriteLine(sFileList); //NOTE: lbOut includes "(could not copy)" messages
+				//streamOut.WriteLine();
+				streamOut.WriteLine("Output:");
+				for (int i=0; i<this.lbOut.Items.Count; i++) {
+					streamOut.WriteLine(this.lbOut.Items[i].ToString());
+				}
+				streamOut.Close();
+			}
+			catch (Exception exn) {
+				Console.Error.WriteLine();
+				Console.Error.WriteLine("Could not finish WriteLastRunLog:"+exn.ToString());
+			}
+		}//end WriteLastRunLog
+		
+		void MenuitemCancelClick(object sender, EventArgs e) {
+			//if (bBusyCopying) {
+			//	menuitemCancel.Enabled=false;
+			//	bUserCancelledLastRun=true;
+			//}
+			//else {
+			if (!bUserCancelledLastRun) {
+				//if (flisterNow!=null&&flisterNow.IsBusy) flisterNow.Stop();
+				menuitemCancel.Enabled=false;
+				bUserCancelledLastRun=true;
+			}
+			//}
+		}//end MenuitemCancelClick
+		
+		void MenuitemEditMainClick(object sender, EventArgs e) {
+			try {
+				DialogResult dlgresult=MessageBox.Show(Common.LimitedWidth("In order for any changes you make to take effect, you must close "+MainFile_Name+", close "+sMyName+" then open the "+sMyName+" icon again.",40,"\n",true), sMyName, MessageBoxButtons.OKCancel);
+				if (dlgresult==DialogResult.OK) System.Diagnostics.Process.Start(BackupProfileFolder_FullName+Common.sDirSep+MainFile_Name);
+			}
+			catch (Exception exn) {
+				Common.ShowExn(exn,"opening "+Common.SafeString(MainFile_Name,true)+" for profile","menuitemEditMainClick");
+			}			
+		}//end MenuitemEditMainClick
+		
+		void MenuitemEditScriptClick(object sender, EventArgs e) {
+			try {
+				DialogResult dlgresult=MessageBox.Show(Common.LimitedWidth(ScriptFile_Name +" must be saved before returning to "+sMyName+" and pressing \"Go\" in order for any changes you make to take effect.",40,"\n",true), sMyName, MessageBoxButtons.OKCancel);
+				if (dlgresult==DialogResult.OK) System.Diagnostics.Process.Start(BackupProfileFolder_FullName+Common.sDirSep+ScriptFile_Name);
+			}
+			catch (Exception exn) {
+				Common.ShowExn(exn,"opening \""+ScriptFile_Name+"\" in profile","menuitemEditScriptClick");
+			}			
+		}//end MenuitemEditScriptClick
+
+		void SaveOutputToolStripMenuItemClick(object sender, EventArgs e) {
+			if (SaveOutputToTextFile()) {
+				MessageBox.Show("SaveOutput...OK (Saved to "+OutputFile_FullName+")");
+			}
+			else {
+				MessageBox.Show("SaveOutput...Failed (could not write to "+OutputFile_FullName+")");
+			}
+		}
+		/* NOTE: no longer needed since flister was used for "non-realtime" backup
+		void BackupTree(DirectoryInfo diBase) {
+			try {
+				foreach (DirectoryInfo diNow in diBase.GetDirectories()) {
+					sLastFileUsed=diNow.FullName;
+					if (!Common.IsExcludedFolder(diNow)) {
+						iListedLines++;
+						FileAttributes fileattribNow = File.GetAttributes(sListedItem);
+						//FileInfo fiNow=new FileInfo(sListedItem);
+						//if (fiNow.Attributes&FileAttributes.Directory
+						if ((fileattribNow & FileAttributes.Directory) == FileAttributes.Directory) {
+							ReconstructPathOnBackup(sListedItem);
+						}
+						Application.DoEvents();
+						BackupTree(diNow);
+					}//end if not excluded
+					if (bUserCancelledLastRun) break;
+				}//end foreach
+				foreach (FileInfo fiNow in diBase.GetFiles()) {
+					sLastFileUsed=fiNow.FullName;
+					if (!Common.IsExcludedFile(diBase,fiNow)) {
+							//FileInfo fiNow=new FileInfo(sListedItem);
+							//if (fiNow.Exists)
+							ReconstructPathOnBackup(fiNow.DirectoryName);
+							BackupFile(fiNow,true);
+						if (bTestOnly) Output(sListedItem,true);
+						if (bUserCancelledLastRun||bDiskFullLastRun) break; //do NOT stop if Copy Error only
+					}//end if not excluded
+					if (bUserCancelledLastRun) break;
+					BackupFile(fiNow.FullName,true,fiNow)
+				}//end foreach
+			}
+			catch (Exception exn) {
+				Common.HandleListException(diBase,exn,"MainForm.BackupTree");
+			}
+			Application.DoEvents();
+		}//end BackupTree
+		*/
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="diNow"></param>
+		/// <param name="exn"></param>
+		/// <param name="sMethod"></param>
+		public static void HandleListException(DirectoryInfo diNow, Exception exn, string sMethod) {
+			try {
+				if (alSkippedDueToException==null) alSkippedDueToException=new ArrayList();
+				string sMsg=exn.ToString();
+				string sRecord="";
+				sRecord=Common.sLastFileUsed;//if (diNow!=null) sRecord=diNow.FullName;
+				
+				if (sMsg.IndexOf("Unauthorized")>-1) {
+					if (sRecord!="") sRecord="No file permissions:"+sRecord;
+					sMsg=sMethod+" -- Access to "+diNow.FullName+" was forbidden:";
+				}
+				else if (sMsg.IndexOf("ERROR_NO_MORE_FILES")>-1) {
+					//this is ok, it just means there are no files to list here
+					sMsg="";
+					//if (sRecord!="") sRecord="No files could be listed:"+sRecord;
+				}
+				else if (sMsg.IndexOf("FileNotFoundException")>-1) {
+					if (sRecord!="") sRecord="Can't be found:"+sRecord;
+					sMsg="Error in "+sMethod+" -- \""+diNow.FullName+"\" Cannot be found:";
+				}
+				else {
+					if (sRecord!="") sRecord="Could not list:"+sRecord;
+					sMsg="Error in "+sMethod+" -- listing \""+diNow.FullName+"\":";
+				}
+				if (sMsg!="") {
+					if (sRecord!="") alSkippedDueToException.Add(sRecord);
+					Console.Error.WriteLine();
+					Console.Error.WriteLine(sMsg);
+					Console.Error.WriteLine("(\""+Common.sLastFileUsed+"\")");
+					Console.Error.WriteLine(exn.ToString());
+				}
+			}
+			catch (Exception exn2) {
+				Console.Error.WriteLine();
+				Console.Error.WriteLine("HandleListException error:");
+				Console.Error.WriteLine(exn2.ToString());
+			}
+		}//end HandleListException
+		
+		
+		void MenuitemHelp_ViewOutputOfLastRunClick(object sender, EventArgs e) {
+			try {
+				System.Diagnostics.Process.Start(sLastRunLog);
+			}
+			catch {}
 		}
 	}//end MainForm
 }//end namespace

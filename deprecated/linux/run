@@ -1,0 +1,4 @@
+#!/bin/sh
+cd bin
+mono Backup\ GoNow.exe
+cd ..

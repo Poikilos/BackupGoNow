@@ -1,1 +1,0 @@
-move /y "Backup GoNow.exe" "Backup GoNow.exe.wip"

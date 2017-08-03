@@ -10,7 +10,7 @@
 using System;
 using System.Windows.Forms;
 
-namespace OrangejuiceElectronica
+namespace JakeGustafson
 {
 	/// <summary>
 	/// Class with program entry point.

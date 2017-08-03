@@ -16,6 +16,8 @@
     <BaseAddress>4194304</BaseAddress>
     <PlatformTarget>x86</PlatformTarget>
     <FileAlignment>4096</FileAlignment>
+    <SourceAnalysisOverrideSettingsFile>C:\Documents and Settings\Owner\Application Data\ICSharpCode/SharpDevelop3.0\Settings.SourceAnalysis</SourceAnalysisOverrideSettingsFile>
+    <StartWorkingDirectory>bin\</StartWorkingDirectory>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -24,6 +26,7 @@
     <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ApplicationIcon>debug.ico</ApplicationIcon>
+    <StartAction>Project</StartAction>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
     <DebugSymbols>false</DebugSymbols>
@@ -42,18 +45,18 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\FolderLister\src\FolderLister.cs">
-      <Link>FolderLister.cs</Link>
+    <Compile Include="..\ForwardFileSync\Common.cs">
+      <Link>Common.cs</Link>
     </Compile>
-    <Compile Include="..\UniWinForms\src\Chunker.cs">
-      <Link>Chunker.cs</Link>
+    <Compile Include="..\ForwardFileSync\LocInfo.cs">
+      <Link>LocInfo.cs</Link>
     </Compile>
     <Compile Include="AssemblyInfo.cs" />
-    <Compile Include="LocInfo.cs" />
     <Compile Include="MainForm.cs" />
     <Compile Include="MainForm.Designer.cs">
       <DependentUpon>MainForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="MyCallBack_WinForms.cs" />
     <Compile Include="Program.cs" />
     <EmbeddedResource Include="MainForm.resx">
       <DependentUpon>MainForm.cs</DependentUpon>
