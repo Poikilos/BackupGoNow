@@ -1,339 +1,512 @@
 /*
- * Created by SharpDevelop.
- * User: Jake Gustafson, all rights reserved (Owner)
- * Date: 2/5/2006
- * Time: 1:44 AM
+ *  Created by SharpDevelop (To change this template use Tools | Options | Coding | Edit Standard Headers).
+ * User: Jake Gustafson (Owner)
+ * Date: 1/25/2007
+ * Time: 10:08 AM
  * 
- * To change this template use Tools | Options | Coding | Edit Standard Headers.
  */
+
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
 using System.IO;
 using System.Collections;
-using System.Threading;
+using System.Diagnostics;
 
-namespace GoNowBackup
-{
+namespace GoNowBackup {
 	/// <summary>
 	/// Description of MainForm.
 	/// </summary>
-	public class MainForm : System.Windows.Forms.Form
+	public partial class MainForm
 	{
-		private System.ComponentModel.IContainer components;
-		private System.Windows.Forms.Timer timerStart;
-		private System.Windows.Forms.Label lblFinished;
-		private System.Windows.Forms.TextBox tbFolder;
-		private System.Windows.Forms.StatusBar sbMain;
-		private System.Windows.Forms.RichTextBox rtbError;
-		private bool bBusy=false;
-		private int iCount=0;
-		public static StatusBar sbNow;
-		public static RichTextBox rtbNow;
-		//public static string sErrNow;
-		public static string sLog {
-			set {
-				try {
-					rtbNow.Visible=true;
-					rtbNow.Text=value;
-				}
-				catch (Exception exn) {
-					
-				}
-			}
-		}
-		public static string sStatus {
-			set {
-				try{
-					sbNow.Text=value;
-				}
-				catch (Exception exn) {
-					
-				}
-			}
-		}
-		private DirectoryInfo dirinfoStart;
-		private int iDepth=1;
-		private int iMaxDepth=0;//0=no limit
-		private bool bListFiles=false;
-		private ThreadStart deltsDoList;
-		private Thread tDoList;
-		public string sMyDocs;
-		public string sFolder;
-		string sFolderPreText;
-		string sFilePreText;
-		string sFolderSymbol="|-[-] ";
-		string sFileSymbol="|- ";
+		//TODO: optional:
+		//-Make a bCompress option
+		//	-Allow no dest file if not compressed,
+		//	-Uncomment all the lines to allow this
+		//	-Set the backup variables and run DoList() for each call to AddToBatch()
+		public static string sSelfName="GoNowBackup";
+		public static string sBatch="lastrun.bat";
+		public static string sCompressionMethod="zip";//can be "zip" or "7z" (command options may not work with 7z--check this)
+		public static int iErrors=0;
+		public static int iMaxErrors=100;
+		//private int iTickLastRefresh=Environment.TickCount();
+		//private DirectoryInfo dirinfoStart;
+		//private int iDepth=1;
+		//private int iMaxDepth=0;//0=no limit
+		//private bool bListFiles=false;
+		//public string sFolderPreText;
+		//public string sFilePreText;
+		//public string sFolderSymbol="|-[-] ";
+		//public string sFileSymbol="|- ";
 
+		#region backup options (set only once)
+		public static string sTargetDriveRootWithSlash="";
+		public static string sTargetDriveFolderNameOrIsADot="";
+		public static string sCommand="update";
+		public static string sTargetFile="";
+		#endregion
+		public static string sDirSepString=char.ToString(Path.DirectorySeparatorChar);
+		#region backup variables (set once per action)
+		//public string sFolder;
+		public static bool bContinue=true;//false if program close button is pressed.
+		public static bool bBusy=false;
+		public static StreamWriter swBatch=null;
+		//private int iCountFiles=0;
+		//private int iCountFolders=0;
+		public static int iErrorBoxesShown=0;
+		public static TextBox tbStatusStatic;
+		public static RichTextBox rtbOutputStatic;
+		public static ArrayList alRootLines; //what to backup (INCLUDES COMMAND <>)
+		public static string sSettingsFileName="settings.txt";
+		#endregion
+		
+		[STAThread]
+		public static void Main(string[] args) {
+			Application.EnableVisualStyles();
+			Application.SetCompatibleTextRenderingDefault(false);
+			Application.Run(new MainForm());
+		}
+		
 		public MainForm() {
 			//
 			// The InitializeComponent() call is required for Windows Forms designer support.
 			//
 			InitializeComponent();
-			MainForm.sbNow=this.sbMain;
-			//btnGo.Enabled=false;
-			deltsDoList = new ThreadStart(DoList);
-	 		tDoList = new Thread(deltsDoList);
-	 		sMyDocs=Environment.GetFolderPath(Environment.SpecialFolder.Personal);
-	 		tbFolder.Text=sMyDocs;
-	 		rtbNow=rtbError;
-		}
-		
-		[STAThread]
-		public static void Main(string[] args)
-		{
-			Application.Run(new MainForm());
-		}
-		
-		#region Windows Forms Designer generated code
-		/// <summary>
-		/// This method is required for Windows Forms designer support.
-		/// Do not change the method contents inside the source code editor. The Forms designer might
-		/// not be able to load this method if it was changed manually.
-		/// </summary>
-		private void InitializeComponent() {
-			this.components = new System.ComponentModel.Container();
-			this.rtbError = new System.Windows.Forms.RichTextBox();
-			this.sbMain = new System.Windows.Forms.StatusBar();
-			this.tbFolder = new System.Windows.Forms.TextBox();
-			this.lblFinished = new System.Windows.Forms.Label();
-			this.timerStart = new System.Windows.Forms.Timer(this.components);
-			this.btnGo = new System.Windows.Forms.Button();
-			this.nudDepth = new System.Windows.Forms.NumericUpDown();
-			this.label1 = new System.Windows.Forms.Label();
-			((System.ComponentModel.ISupportInitialize)(this.nudDepth)).BeginInit();
-			this.SuspendLayout();
-			// 
-			// rtbError
-			// 
-			this.rtbError.Dock = System.Windows.Forms.DockStyle.Right;
-			this.rtbError.Location = new System.Drawing.Point(443, 32);
-			this.rtbError.Name = "rtbError";
-			this.rtbError.Size = new System.Drawing.Size(163, 276);
-			this.rtbError.TabIndex = 3;
-			this.rtbError.Text = "";
-			this.rtbError.Visible = false;
-			// 
-			// sbMain
-			// 
-			this.sbMain.Location = new System.Drawing.Point(0, 308);
-			this.sbMain.Name = "sbMain";
-			this.sbMain.Size = new System.Drawing.Size(606, 8);
-			this.sbMain.SizingGrip = false;
-			this.sbMain.TabIndex = 2;
-			this.sbMain.Text = "Loading...";
-			// 
-			// tbFolder
-			// 
-			this.tbFolder.Dock = System.Windows.Forms.DockStyle.Top;
-			this.tbFolder.Font = new System.Drawing.Font("Tahoma", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-			this.tbFolder.Location = new System.Drawing.Point(0, 0);
-			this.tbFolder.Name = "tbFolder";
-			this.tbFolder.Size = new System.Drawing.Size(606, 32);
-			this.tbFolder.TabIndex = 1;
-			this.tbFolder.Text = "C:\\Documents and Settings";
-			// 
-			// lblFinished
-			// 
-			this.lblFinished.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-			this.lblFinished.Location = new System.Drawing.Point(1, 1);
-			this.lblFinished.Name = "lblFinished";
-			this.lblFinished.Size = new System.Drawing.Size(0, 0);
-			this.lblFinished.TabIndex = 4;
-			this.lblFinished.Text = "Finished";
-			this.lblFinished.TextAlign = System.Drawing.ContentAlignment.TopRight;
-			this.lblFinished.Visible = false;
-			// 
-			// timerStart
-			// 
-			this.timerStart.Interval = 5000;
-			this.timerStart.Tick += new System.EventHandler(this.TimerStartTick);
-			// 
-			// btnGo
-			// 
-			this.btnGo.Dock = System.Windows.Forms.DockStyle.Top;
-			this.btnGo.Location = new System.Drawing.Point(0, 32);
-			this.btnGo.Name = "btnGo";
-			this.btnGo.Size = new System.Drawing.Size(443, 35);
-			this.btnGo.TabIndex = 5;
-			this.btnGo.Text = "Go";
-			this.btnGo.UseVisualStyleBackColor = true;
-			this.btnGo.Click += new System.EventHandler(this.Button1Click);
-			// 
-			// nudDepth
-			// 
-			this.nudDepth.Dock = System.Windows.Forms.DockStyle.Bottom;
-			this.nudDepth.Location = new System.Drawing.Point(0, 284);
-			this.nudDepth.Name = "nudDepth";
-			this.nudDepth.Size = new System.Drawing.Size(443, 24);
-			this.nudDepth.TabIndex = 6;
-			this.nudDepth.Value = new decimal(new int[] {
-									4,
-									0,
-									0,
-									0});
-			this.nudDepth.ValueChanged += new System.EventHandler(this.NudDepthValueChanged);
-			// 
-			// label1
-			// 
-			this.label1.Dock = System.Windows.Forms.DockStyle.Bottom;
-			this.label1.Location = new System.Drawing.Point(0, 280);
-			this.label1.Name = "label1";
-			this.label1.Size = new System.Drawing.Size(443, 4);
-			this.label1.TabIndex = 7;
-			this.label1.Text = "Depth (0 for no limit):";
-			this.label1.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-			// 
-			// MainForm
-			// 
-			this.AutoScaleBaseSize = new System.Drawing.Size(7, 17);
-			this.ClientSize = new System.Drawing.Size(606, 316);
-			this.Controls.Add(this.label1);
-			this.Controls.Add(this.nudDepth);
-			this.Controls.Add(this.btnGo);
-			this.Controls.Add(this.rtbError);
-			this.Controls.Add(this.sbMain);
-			this.Controls.Add(this.tbFolder);
-			this.Controls.Add(this.lblFinished);
-			this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
-			this.MaximizeBox = false;
-			this.Name = "MainForm";
-			this.SizeGripStyle = System.Windows.Forms.SizeGripStyle.Hide;
-			this.Text = "GoNowBackup";
-			this.Closed += new System.EventHandler(this.MainFormClosed);
-			this.Load += new System.EventHandler(this.MainFormLoad);
-			((System.ComponentModel.ISupportInitialize)(this.nudDepth)).EndInit();
-			this.ResumeLayout(false);
-			this.PerformLayout();
-		}
-		private System.Windows.Forms.Button btnGo;
-		private System.Windows.Forms.NumericUpDown nudDepth;
-		private System.Windows.Forms.Label label1;
-		#endregion
-		void Label1Click(object sender, System.EventArgs e)
-		{
 			
+			//
+			// constructor code after the InitializeComponent() call.
+			//
+
+			tbStatusStatic=this.tbStatus;
+			rtbOutputStatic=this.rtbOutput;
 		}
-		
-		public void SubList(DirectoryInfo dirinfoNow, ref StreamWriter swList) {
+		/*
+		public void SubList(DirectoryInfo dirinfoNow) {
 			int iDepthPrev=iDepth;
 			iDepth++;
+			iCountFolders++;
 			string sFolderPreTextPrev=sFolderPreText;
 			string sFilePreTextPrev=sFilePreText;
 			string sIndent="";
-			for (int iDent=0; iDent<iDepthPrev; iDent++) {
-				if (sIndent=="") sIndent="   ";
-				else sIndent="   "+sIndent;
+			try {
+				for (int iDent=0; iDent<iDepthPrev; iDent++) {
+					if (sIndent=="") sIndent="   ";
+					else sIndent="   "+sIndent;
+				}
+				sFolderPreText=(sIndent=="")?sFolderSymbol:sIndent+sFolderSymbol;
+				sFilePreText=(sIndent=="")?sFileSymbol:sIndent+sFileSymbol;
+				foreach (DirectoryInfo dirinfoX in dirinfoNow.GetDirectories()) {
+					MainForm.ShowMessageLine(sFolderPreText+dirinfoX.Name);
+					//MainForm.ShowMessageLine(dirinfoX.FullName);
+					if (iDepth<iMaxDepth||iMaxDepth==0) SubList(dirinfoX);
+					iCountFolders++;
+				}//end foreach folder
+				FileList(dirinfoNow);
+				sFolderPreText=sFolderPreTextPrev;
+				sFilePreText=sFilePreTextPrev;
 			}
-			sFolderPreText=(sIndent=="")?sFolderSymbol:sIndent+sFolderSymbol;
-			sFilePreText=(sIndent=="")?sFileSymbol:sIndent+sFileSymbol;
-			foreach (DirectoryInfo dirinfoX in dirinfoNow.GetDirectories()) {
-				swList.WriteLine(sFolderPreText+dirinfoX.Name);
-				this.tbFolder.Text=dirinfoX.FullName;
-				if (iDepth<iMaxDepth||iMaxDepth==0) SubList(dirinfoX, ref swList);
-			}//end foreach folder
-			if (bListFiles) FileList(dirinfoNow, ref swList);
-			sFolderPreText=sFolderPreTextPrev;
-			sFilePreText=sFilePreTextPrev;
+			catch (Exception exn) {
+				MainForm.ShowError("Exception error traversing subfolders: "+exn.ToString());
+			}
 			iDepth=iDepthPrev;
 		}//end SubList
-		public void FileList(DirectoryInfo dirinfoNow, ref StreamWriter swList) {
+		public void FileList(DirectoryInfo dirinfoNow) {
 			iDepth++;
 			int iDepthCurrent=iDepth;
-			if (bListFiles) {
-				foreach (FileInfo fiNow in dirinfoNow.GetFiles()) {
-					swList.WriteLine(sFilePreText+fiNow.Name);
-				}
+			foreach (FileInfo fiNow in dirinfoNow.GetFiles()) {
+				MainForm.ShowMessageLine(sFilePreText+fiNow.Name);
+				iCountFiles++;
 			}
 		}//end FileList
 		public void DoList() {
-			/*
-			 * Assumes that these vars are set:
-			 * iMaxDepth=(int)nudDepth.Value;
-			 * bListFiles=true;
-			 * sFolder=this.tbFolder.Text;
-			 * tDoList.Start();
-			*/
-
 			//(values of global vars are set by the calling function to the values of form fields)
 			try {
 				dirinfoStart=new DirectoryInfo(sFolder);
 				if (bBusy==false) {
 					bBusy=true;
-					iCount=0;
-					//(adds no trailing slash to sMyDocs)
-					string sMyFile=sMyDocs+"\\"+"Folders-Listed.txt";
-					StreamWriter swList=new StreamWriter(sMyFile);
-					swList.AutoFlush=false;
+					iCountFiles=0;
+					iCountFolders=0;
 					//string sLine;
-					this.sbMain.Text="Listing...";
-					swList.WriteLine(dirinfoStart.FullName);
+					MainForm.ShowMessageLine();
+					MainForm.ShowMessageLine("Adding files from \""+sFolder+"\"...");
+					//MainForm.ShowMessageLine(dirinfoStart.FullName);
 					foreach (DirectoryInfo dirinfoX in dirinfoStart.GetDirectories()) {
 						iDepth=1;
 						sFolderPreText=sFolderSymbol;
 						sFilePreText=sFileSymbol;
-						swList.WriteLine(sFolderPreText+dirinfoX.FullName);
-						this.sbMain.Text=dirinfoX.FullName;
-						SubList(dirinfoX, ref swList);
-						//if (bListFiles) FileList(dirinfoX, ref swList);
+						MainForm.ShowMessageLine(sFolderPreText+dirinfoX.FullName);
+						//MainForm.ShowMessageLine(dirinfoX.FullName);
+						SubList(dirinfoX);
 					}
-					this.sbMain.Text="Listing...done.  Writing file...";
-					swList.Flush();
-					swList.Close();
-					this.sbMain.Text="Finished.";
+					//MainForm.ShowMessageLine("Listing...done.  Writing file...");
+					//MainForm.ShowMessageLine("Finished.");
 					//this.lblFinished.Visible=true;
 					//this.lblFinished.Show();
 					bBusy=false;
 				}
-				/* 
-				 * TODO: on close:
-				 * try {
-				 * 	tDoList.Abort();
-				 * }
-				 * catch (Exception exn) {
-				 * }
-				 * 
-				 */
-
 			}
 			catch (Exception exn) {
-				DoError("count="+iCount.ToString()+"  "+exn.ToString());
+				MainForm.ShowError("Exception error during list ("+iCountFiles.ToString()+") files and "+iCountFolders+" folders so far: "+exn.ToString());
 			}
-			
 		}
-		public void DoError(string sErr) {
-			sStatus="ERROR! "+sErr;
-			sLog=sErr;
+		*/
+		public static void ShowError(string sErr) {
+			tbStatusStatic.Text=sErr;
+			if (iErrors<iMaxErrors) rtbOutputStatic.Text+=sErr+"\n";
+			else if (iErrors==iMaxErrors) {
+				rtbOutputStatic.Text+="Too many errors, so this is the last message that will be shown: \n"
+					+sErr+"\n";
+			}
+			Application.DoEvents();
+			iErrors++;
 		}
-		
-		void MainFormLoad(object sender, System.EventArgs e) {
-			nudDepth.Value=iMaxDepth;
-			this.bListFiles=true;
-			this.sbMain.Text = "";
+		public static void ShowMessageLine() {
+			rtbOutputStatic.Text+="\n";
+			Application.DoEvents();
 		}
-		
-		void TimerStartTick(object sender, System.EventArgs e) {
-			timerStart.Enabled=false;
+		public static void ShowMessageLine(string sLine) {
+			ShowMessage(((sLine!=null)?sLine:"")+"\n");
 		}
-		
-		void MainFormClosed(object sender, System.EventArgs e) {
+		public static void ShowMessage(string sMsg) {
 			try {
-				tDoList.Abort();
+				rtbOutputStatic.Text+=sMsg;
+				tbStatusStatic.Text=sMsg;
+				Application.DoEvents();
 			}
 			catch (Exception exn) {
-				
+				//do not report this
 			}
 		}
-		
-		
-		void Button1Click(object sender, System.EventArgs e) {
-			iMaxDepth=(int)nudDepth.Value;
-			bListFiles=true;
-			sFolder=this.tbFolder.Text;
-			tDoList.Start();
+		public static bool SafeShow(string sNow) {
+			bool bShown=false;
+			string sTemp;
+			if (iErrorBoxesShown<1) {
+				if (sNow!=null) {
+					sTemp=sNow.Replace(" ","");
+					sTemp=sTemp.Replace("\n","");
+					sTemp=sTemp.Replace("\r","");
+					sTemp=sTemp.Replace("\t","");
+					if (sTemp!=null&&sTemp!="") {
+						sTemp=sNow;
+					}
+					else sTemp="Unknown Error";
+					MessageBox.Show(sTemp);
+					iErrorBoxesShown++;
+				}
+			}
+			return bShown;
+		}
+		public static string SafeDriveStringFromLabelOrRealRootString(string sValue) {
+			string sReturn="";
+			if (sValue==null) {
+				sReturn="";
+			}
+			else if (sValue.EndsWith(sDirSepString)) {
+				sReturn=sValue;
+			}
+			else if (sValue.EndsWith("/")) {
+				sReturn=sValue;
+			}
+			else if (sValue.EndsWith(":")) {
+				sReturn=sValue+sDirSepString; //OK only since already made sure that DirectorySeparatorChar isn't ":"
+			}
+			else {//else look for drive by label
+				int iLettersMaxUsed=0;
+				int iLettersMax=26;
+				int iFound=-1;
+				DriveInfo[] diarrList=null;
+				try {
+					diarrList=DriveInfo.GetDrives();
+					if (diarrList!=null) {
+						for (int iNow=0; iNow<diarrList.Length; iNow++) {
+							if ( diarrList[iNow].IsReady
+							    && diarrList[iNow].VolumeLabel==sValue) {
+								iFound=iNow;
+								break;
+							}
+						}
+						if (iFound>=0) {
+							sReturn=diarrList[iFound].RootDirectory.ToString();
+							if (!sReturn.EndsWith(sDirSepString)) {
+								sReturn+=sDirSepString;//debug -- could this CAUSE a problem???
+							}
+							//System.Diagnostics.Process procNow=new System.Diagnostics.Process();
+							//System.Diagnostics.Process.Start(diarrList[iFound].RootDirectory.ToString());
+						}
+						else {//not found
+							SafeShow("Could not find drive labeled \""+sValue+"\" -- make sure that" +
+							                " the drive is connected and that your drive has actually been set to "+sValue);
+							sReturn="";
+						}
+					}
+					else {
+						MainForm.ShowError("Your computer couldn't show a drive list.  It is possible that is program is not compatible with your computer or that a drive is not working properly.  If you have a modern desktop or laptop computer, it is more likely that one of your drives is busy with another task.");
+						sReturn="";
+					}
+				}
+				catch (Exception exn) {
+					MainForm.ShowError("Drive labeled not ready or not present.  \n\nError details:\n"+exn.ToString());
+					sReturn="";
+				}
+			}
+			return sReturn;
+		}
+		public static bool AssignVarByActionType(int iActionType, string sValue) {
+			bool bFound=false;
+			if (iActionType==Action.TypeSetTargetDrive) {
+				sTargetDriveRootWithSlash=SafeDriveStringFromLabelOrRealRootString(sValue);
+				//if (sTargetDriveRootWithSlash.Length<=0) { //do not do this yet.  Will be checked upon trying to run backup.
+			}
+			else if (iActionType==Action.TypeSetCommand) {
+				sCommand=sValue;
+			}
+			else if (iActionType==Action.TypeSetTargetFile) {
+				sTargetFile=sValue;
+			}
+			else if (iActionType==Action.TypeSetTargetFolder) {
+				sTargetDriveFolderNameOrIsADot=sValue;
+			}
+			return bFound;
+		}
+		public static bool CheckVars() {
+			bool bCheck= 
+					sTargetDriveFolderNameOrIsADot!=null && sTargetDriveFolderNameOrIsADot.Length>0
+				&&	sTargetFile!=null && sTargetFile.Length>0
+				&&	sTargetDriveRootWithSlash!=null && sTargetDriveRootWithSlash.Length>0
+				&&	sCommand!=null && sCommand.Length>0
+				&& alRootLines!=null && alRootLines.Count>0;
+			return bCheck;
+		}
+		public static int LoadSettingsFile() {
+			alRootLines=new ArrayList();
+			string sLine=" ";
+			string sValueSubstringNow;
+			int iSources=-1;//-1 is error state
+			int iLines=0;//not really used yet as of 2007-01
+			try {
+				if (File.Exists(sSettingsFileName)) {
+				    StreamReader srNow=new StreamReader(sSettingsFileName);
+					while (sLine != null) {
+				    	sLine = srNow.ReadLine();
+				    	if (sLine != null) {
+				    		if (sLine.Length>0 && !sLine.StartsWith("#")) { //ignores blank lines and comments
+				    			int iActionType=Action.FromLine(out sValueSubstringNow, sLine);
+				    			if (Action.IsUsable(iActionType)) {
+					    			if (Action.IsAssignment(iActionType)) {
+				    					AssignVarByActionType(iActionType,sValueSubstringNow);
+					    			}
+				    				else {
+				    					alRootLines.Add(sLine);
+					    				if (iSources==-1) iSources=1;
+					    				else iSources++;
+				    				}
+				    			}
+				    			else {
+				    				MainForm.ShowError("Parser could not interpret line action.");
+				    			}
+				    			iLines++;
+				    		}
+				    	}
+				    }
+				    srNow.Close();
+				}//end if settings file exists
+			}
+			catch (Exception exn) {
+				SafeShow("The failed to load the settings file.\n\n"+exn.ToString());
+				MainForm.ShowError("Exception during : "+exn.ToString());
+				iSources=-1;
+			}
+			return iSources;
+		}//end LoadSettingsFile()
+		public static bool AnyExists(string sLocation) {
+			FileInfo fiNow;
+			bool bReturn;
+			fiNow = new FileInfo(sLocation);
+			bReturn=fiNow.Exists;
+			if (!bReturn) {
+				DirectoryInfo diNow=new DirectoryInfo(sLocation);
+				bReturn=diNow.Exists;
+			}
+			return bReturn;
+		}
+		public static bool AddToBatch(string sLocation, bool IsFolder, bool DoSubfolders) {
+			bool bGood=false;
+			string sTargetNow;
+			try {
+				sTargetNow=sTargetDriveRootWithSlash
+					+((sTargetDriveFolderNameOrIsADot==".")?"":sTargetDriveFolderNameOrIsADot+sDirSepString)
+					+sTargetFile+"."+sCompressionMethod;
+				if (swBatch==null) {
+					if (sCommand=="replace" && AnyExists(sTargetNow)) {
+						File.Delete(sTargetNow);
+					}
+					swBatch=new StreamWriter(sBatch);
+				}
+				string sTypeNote=((IsFolder)?"folder":"file");
+				string sFolderNote=((DoSubfolders)?" with subfolders":(IsFolder?" without subfolders":" "));
+				string sLocAppend="";//(DoSubfolders&&IsFolder)?( ((!sLocation.EndsWith(MainForm.sDirSepString))?MainForm.sDirSepString:"") + "*" ):"";//TO NOT DO (would put them in the root of the zip instead of subfolder
+				MainForm.ShowMessage("Adding "+sTypeNote+sFolderNote+" \""+sLocation+sLocAppend+"\"...");
+				if (AnyExists(sLocation)) {
+					swBatch.WriteLine("REM copy "+sTypeNote+sFolderNote+":");
+					swBatch.WriteLine("7za "+((sCommand=="replace")?"a":"u")
+					                  +" -t"/*no space*/+sCompressionMethod+" \""+sTargetNow+"\" "
+					                  +"\""+sLocation+sLocAppend+"\""+" -y "+((DoSubfolders&&IsFolder)?"-r ":"-r- ")+"-mx9");
+					bGood=true;
+					MainForm.ShowMessageLine("Success.");
+				}
+				else {
+					bGood=false;//this will be noted by DoAllLists so no need to show error.
+					MainForm.ShowMessageLine("Failed.");
+					MainForm.ShowError("This file/folder does not exist, and will not be processed: \""+sLocation+"\".");
+				}
+			}
+			catch (Exception exn) {
+				MainForm.ShowError(exn.ToString());
+			}
+			return bGood;
+		}//end AddToBatch
+		public static bool RunBatch() {
+			bBusy=true;
+			if (bContinue==false)
+				return false;
+			
+			bool bGood=false;
+			try {
+				MainForm.ShowMessage("Finalizing script...");
+				try {swBatch.Close();}
+				catch (Exception exn) {
+					MainForm.ShowError("Couldn't close script: "+exn.ToString());
+				}
+				MainForm.ShowMessageLine("Success.");
+				MainForm.ShowMessage("Running backup script...");
+
+				Process proc = new Process();
+				// Redirect the output stream of the child process.
+				proc.StartInfo.UseShellExecute = false;
+				//proc.StartInfo.RedirectStandardError = true;
+				proc.StartInfo.FileName = sBatch;
+				proc.StartInfo.CreateNoWindow=true;
+				proc.StartInfo.WorkingDirectory=Application.StartupPath;
+				proc.Start();
+				proc.WaitForExit(); //TODO: make it async and stop if bContinue becomes false.
+				string sErr = "";
+				//sErr=proc.StandardOutput.ReadToEnd();
+				//try {
+				//	sErr=//was going to get it from file here.
+				//}
+				//catch (Exception exn) {//do not report this
+				//	sErr="";
+				//}
+				ShowMessageLine("Success.");
+				string sResult="Finished backup script.  Press OK to close.";
+				bGood=true;
+				if (sErr!=null && sErr.Length>0) sResult+=" with errors:\n"+sErr+"\n\nPress OK to close.";
+				else sResult+=".";
+				SafeShow(sResult);
+				Application.Exit();
+			}
+			catch (Exception exn) {
+				string sTemp="Exception error running backup script: \n\n"+exn.ToString();
+				MainForm.ShowError(sTemp);
+				SafeShow(sTemp);
+			}
+			return bGood;
+		}
+		public static void DoAllLists() {
+			int iActionNow=-1;
+			bool bGood=true;
+			string sActionValueSubstringNow;
+			try {
+				foreach (string sLine in alRootLines) {
+					iActionNow=Action.FromLine(out sActionValueSubstringNow, sLine);
+					if (Action.IsUsable(iActionNow) && !Action.IsAssignment(iActionNow)) {
+						if (iActionNow==Action.TypeFolderRecursive) {
+							//iMaxDepth=0;
+							//sFolder=sActionValueSubstringNow;
+							bGood=AddToBatch(sActionValueSubstringNow,true,true);
+						}
+						else if (iActionNow==Action.TypeFolder) {
+							//iMaxDepth=1;
+							//sFolder=sActionValueSubstringNow;
+							bGood=AddToBatch(sActionValueSubstringNow,true,false);
+						}
+						else if (iActionNow==Action.TypeFile) {
+							bGood=AddToBatch(sActionValueSubstringNow,false,false);
+						}
+						else bGood=false;
+					}
+					else {//else is unusable or is an assignment
+						bGood=false;
+					}
+					if (!bGood) MainForm.ShowError("One of the sources to backup (line: \""+sLine+"\") was not correctly specified in "+sSettingsFileName+" in "+Application.StartupPath);
+				}
+				RunBatch();
+			}
+			catch (Exception exn) {
+				string sTemp="Exception Error processing list:\n\n"+exn.ToString();
+				SafeShow(sTemp);
+				MainForm.ShowError(sTemp);
+			}
+		}
+		void Go() {
+			bool bGood=true;
+			int iTargetsNow=-1;
+			try {
+				if (AnyExists(sSettingsFileName)) {
+					iTargetsNow=LoadSettingsFile();
+					string sTemp;
+					if (iTargetsNow<1) {
+						sTemp="Error, no valid folders to backup were found.  See settings.txt";
+						SafeShow(sTemp);
+						bGood=false;
+					}
+					else if (CheckVars()) {
+						DoAllLists();
+					}
+					else {
+						SafeShow("Error: Settings file is not complete.  See "+sSettingsFileName+" in "+Application.StartupPath+".");
+						bGood=false;
+					}
+				}
+				else {
+					SafeShow("Error: Settings file not found.");//TODO: show configuration info here
+				}
+			}
+			catch (Exception exn) {
+				SafeShow("Program failed to load.\n\n"+exn.ToString());
+				MainForm.ShowError("Exception during program load: "+exn.ToString());
+			}
+			Application.Exit();
+		}
+		void MainFormLoad(object sender, System.EventArgs e) {
+			timerStart.Enabled=true;
+			timerStart.Interval=500;
+			timerStart.Start();
+			//Application.DoEvents();
+			//Go();
 		}
 		
-		void NudDepthValueChanged(object sender, System.EventArgs e) {
+		void MainFormFormClosing(object sender, System.Windows.Forms.FormClosingEventArgs e)
+		{
+			bContinue=false;
+		}
+		
+		void MainFormFormClosed(object sender, System.Windows.Forms.FormClosedEventArgs e)
+		{
+		}
+		bool bDone=false;
+		void TimerStartTick(object sender, System.EventArgs e) {
+			if (!bDone) {
+				bDone=true;
+				timerStart.Enabled=false;//must happen BEFORE go
+				Go();
+			}
+			timerStart.Enabled=false;//intentionally redundant
+		}
+		
+		void RtbOutputTextChanged(object sender, System.EventArgs e)
+		{
 			
 		}
 	}

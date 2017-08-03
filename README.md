@@ -12,6 +12,12 @@ A backup program that anyone can use the first time, with good defaults!
 * If the program fails to load, client needs to download the runtime (such as .NET framework or Mono)
 
 ## Changes
+* (2007-01-25) prevent pushing button twice from crashing program
 
-## Known Issues:
-* prevent pushing button twice from crashing program
+## Known Issues
+
+
+## Developer Notes
+* This program requires Microsoft® .NET® framework 2.0 compiler or later, or Mono 2.0 compiler or later to compile.
+* Any files in folder named "share" may need to be placed in the working directory of the program
+

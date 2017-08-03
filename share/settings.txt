@@ -1,0 +1,39 @@
+#How to use this file:
+#--Uppercase/lowercase does not matter
+#--Use "#" sign at the beginning of a line to make it a comment and it will be ignored.
+#--<Save to Drive> line is the label or location of your destination drive.  If it ends in "\" "/" or ":" it will be taken
+#  literally (as a location) instead of finding the drive by label (unless you have a osx or another system where ":"
+#  is your folder seperator character (that will be detected and should work correctly)
+#--<Save to Folder> line is your subfolder folder in the drive.
+#  --(i.e. if you put "New Folder" without quotes, the data will end up in "X:\New Folder\")
+#  --If you wish it to be the root of the drive, use a dot ("<targetfolder>.") instead of a regular folder name.
+#--<Save to File> line is the destination file name of the backup file to save/update.
+#--<Command> line is either "update" or "replace" (no quotes, capitalization doesn't matter).
+#--Every following line following must be an absolute folder/file location preceded by a tag
+#  "<file>", "<folder>", or "<folder ignoring subfolders>"
+#	--(as many as you want, include brackets ("<" and ">") but not quotes, and leave no space between closing
+#  bracket and file/folder name (i.e. "<file>backup" not "<file> backup")
+#
+#An example is included below (if the comments were removed, it would compress
+# the files (update, not replace):
+
+#<Save to Drive>FLASH1
+#<Save to Folder>Backup
+#<Save to File>testGoNowBackup
+#<Command>update
+#<Folder>C:\Documents and Settings\Owner\My Documents\Projects\GoNowBackup\bin\etc\test1
+#<Folder ignoring subfolders>C:\Documents and Settings\Owner\My Documents\Projects\GoNowBackup\bin\etc\test2
+#<File>C:\Documents and Settings\Owner\My Documents\Projects\GoNowBackup\bin\etc\test3.txt
+
+#Type your commands below or uncomment the appropriate lines above.
+
+<Save to Drive>MEMOREX
+<Save to Folder>.
+<Save to File>NetBoxBackup
+<Command>update
+<Folder>C:\Documents and Settings\Owner\Application Data\Thunderbird
+<File>C:\Documents and Settings\Owner\Application Data\Mozilla\Firefox\Profiles\358yn2ps.default\bookmarks.html
+<Folder>C:\Documents and Settings\Owner\My Documents
+
+
+
