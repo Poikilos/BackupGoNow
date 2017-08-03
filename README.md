@@ -1,4 +1,4 @@
-# GoNowBackup
+# Backup GoNow
 A backup program that anyone can use the first time, with good defaults!
 
 ## License
@@ -12,6 +12,9 @@ A backup program that anyone can use the first time, with good defaults!
 * If the program fails to load, client needs to download the runtime (such as .NET framework or Mono)
 
 ## Changes
+* (2008-10-06) split settings into main.ini and script.txt, so main.ini excludes drives from list before script.txt runs
+* (2008-10-06) renamed from GoNowBackup to Backup GoNow
+* (2008-10-06) added dependency: FolderLister.cs and Chunker.cs from FolderLister
 * (2007-08-15) removed infinite recursion in clean.sh
 * (2007-08-15) updated build.sh to account for refactoring
 * (2007-08-15) Turned off AutoScale for MainForm

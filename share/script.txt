@@ -1,0 +1,25 @@
+#How to use this file:
+#--Case Insensitive
+#--Use "#" sign at the beginning of a line to make it a comment and it will be ignored.
+#--AddFolder includes subfolders
+
+DestArchive:NetBoxBackup
+Mode:update
+
+Exclude:Drafts*
+Exclude:Trash*
+Exclude:mail.eicenvironmental.com
+AddFolder:C:\Documents and Settings\Owner\Application Data\Thunderbird
+Include:Drafts*
+Include:Trash*
+Include:mail.eicenvironmental.com
+
+AddFile:C:\Documents and Settings\Owner\Application Data\Mozilla\Firefox\Profiles\358yn2ps.default\bookmarks.html
+AddFile:C:\Documents and Settings\Owner\Application Data\Mozilla\Firefox\Profiles\358yn2ps.default\places.sqlite
+Exclude:*.ptb
+Exclude:My Pictures
+Exclude:My Music
+#Exclusion on next line since My Documents\etc contains actual PeachTree data:
+Exclude:Peachtree etc
+AddFolder:C:\Documents and Settings\Owner\My Documents
+AddFolder:C:\Progs\Backup GoNow

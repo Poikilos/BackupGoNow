@@ -1,513 +1,417 @@
 /*
- *  Created by SharpDevelop (To change this template use Tools | Options | Coding | Edit Standard Headers).
- * User: Jake Gustafson (Owner)
- * Date: 1/25/2007
- * Time: 10:08 AM
+ * Created by SharpDevelop.
+ * User: Owner
+ * Date: 10/5/2008
+ * Time: 12:21 PM
  * 
+ * To change this template use Tools | Options | Coding | Edit Standard Headers.
  */
 
 using System;
-//using System.Collections.Generic;
+using System.Collections.Generic;
+using System.Collections;
 using System.Drawing;
 using System.Windows.Forms;
 using System.IO;
-using System.Collections;
-using System.Diagnostics;
+using System.Threading;
+using System.Reflection;
 
-namespace GoNowBackup {
+namespace OrangejuiceElectronica
+{
 	/// <summary>
 	/// Description of MainForm.
 	/// </summary>
-	public partial class MainForm
+	public partial class MainForm : Form
 	{
-		//TODO: optional:
-		//-Make a bCompress option
-		//	-Allow no dest file if not compressed,
-		//	-Uncomment all the lines to allow this
-		//	-Set the backup variables and run DoList() for each call to AddToBatch()
-		public static string sSelfName="GoNowBackup";
-		public static string sBatch="lastrun.bat";
-		public static string sCompressionMethod="zip";//can be "zip" or "7z" (command options may not work with 7z--check this)
-		public static int iErrors=0;
-		public static int iMaxErrors=100;
-		//private int iTickLastRefresh=Environment.TickCount();
-		//private DirectoryInfo dirinfoStart;
-		//private int iDepth=1;
-		//private int iMaxDepth=0;//0=no limit
-		//private bool bListFiles=false;
-		//public string sFolderPreText;
-		//public string sFilePreText;
-		//public string sFolderSymbol="|-[-] ";
-		//public string sFileSymbol="|- ";
-
-		#region backup options (set only once)
-		public static string sTargetDriveRootWithSlash="";
-		public static string sTargetDriveFolderNameOrIsADot="";
-		public static string sCommand="update";
-		public static string sTargetFile="";
-		#endregion
-		public static string sDirSepString=char.ToString(Path.DirectorySeparatorChar);
-		#region backup variables (set once per action)
-		//public string sFolder;
-		public static bool bContinue=true;//false if program close button is pressed.
-		public static bool bBusy=false;
-		public static StreamWriter swBatch=null;
-		//private int iCountFiles=0;
-		//private int iCountFolders=0;
-		public static int iErrorBoxesShown=0;
-		public static TextBox tbStatusStatic;
-		public static RichTextBox rtbOutputStatic;
-		public static ArrayList alRootLines; //what to backup (INCLUDES COMMAND <>)
-		public static string sSettingsFileName="settings.txt";
-		#endregion
-		
-		[STAThread]
-		public static void Main(string[] args) {
-			Application.EnableVisualStyles();
-			//TODO:?fix? Application.SetCompatibleTextRenderingDefault(false);
-			Application.Run(new MainForm());
-		}
-		
-		public MainForm() {
+		//TODO: Option to remove files from the backup drive that aren't in the backup script
+		public static bool bDebug=false;
+		public static ArrayList alInvalidDrives=new ArrayList();
+		public static ArrayList alExtraDestinations=new ArrayList();
+		public static string sFileScript="script.txt";
+		public static string sFileMain="main.ini";
+		public static MainForm mainformNow=null;
+		public static ListBox lbOutNow=null;
+		public static int iValidDrivesFound=0;
+		public static int iDestinations=0;
+		public static int iLBRightMargin=0;
+		public static int iLBBottomMargin=0;
+		public static bool bCloseErrorRedirect=false;
+		public static int iTickLastRefresh=Environment.TickCount;
+		public static int iTicksRefreshInterval=500;
+		private static FolderLister flisterNow=null;
+		private static bool bBusyCopying=true;
+		private static bool bCancel=false;
+		private static bool bExitIfNoUsableDrivesFound=false;
+		private static bool bUserCancelledLastRun=false;
+		public MainForm()
+		{
 			//
 			// The InitializeComponent() call is required for Windows Forms designer support.
 			//
 			InitializeComponent();
 			
-			//
-			// constructor code after the InitializeComponent() call.
-			//
+		}//end MainForm constructor
 
-			tbStatusStatic=this.tbStatus;
-			rtbOutputStatic=this.rtbOutput;
+		public static bool ToBool(string sNow) {
+			return sNow.ToLower()=="yes"||sNow=="1"||sNow.ToLower()=="true";
 		}
-		/*
-		public void SubList(DirectoryInfo dirinfoNow) {
-			int iDepthPrev=iDepth;
-			iDepth++;
-			iCountFolders++;
-			string sFolderPreTextPrev=sFolderPreText;
-			string sFilePreTextPrev=sFilePreText;
-			string sIndent="";
+
+		bool RunScript(string sFileX) {
+			bool bGood=false;
+			StreamReader streamIn=null;
 			try {
-				for (int iDent=0; iDent<iDepthPrev; iDent++) {
-					if (sIndent=="") sIndent="   ";
-					else sIndent="   "+sIndent;
-				}
-				sFolderPreText=(sIndent=="")?sFolderSymbol:sIndent+sFolderSymbol;
-				sFilePreText=(sIndent=="")?sFileSymbol:sIndent+sFileSymbol;
-				foreach (DirectoryInfo dirinfoX in dirinfoNow.GetDirectories()) {
-					MainForm.ShowMessageLine(sFolderPreText+dirinfoX.Name);
-					//MainForm.ShowMessageLine(dirinfoX.FullName);
-					if (iDepth<iMaxDepth||iMaxDepth==0) SubList(dirinfoX);
-					iCountFolders++;
-				}//end foreach folder
-				FileList(dirinfoNow);
-				sFolderPreText=sFolderPreTextPrev;
-				sFilePreText=sFilePreTextPrev;
-			}
-			catch (Exception exn) {
-				MainForm.ShowError("Exception error traversing subfolders: "+exn.ToString());
-			}
-			iDepth=iDepthPrev;
-		}//end SubList
-		public void FileList(DirectoryInfo dirinfoNow) {
-			iDepth++;
-			int iDepthCurrent=iDepth;
-			foreach (FileInfo fiNow in dirinfoNow.GetFiles()) {
-				MainForm.ShowMessageLine(sFilePreText+fiNow.Name);
-				iCountFiles++;
-			}
-		}//end FileList
-		public void DoList() {
-			//(values of global vars are set by the calling function to the values of form fields)
-			try {
-				dirinfoStart=new DirectoryInfo(sFolder);
-				if (bBusy==false) {
-					bBusy=true;
-					iCountFiles=0;
-					iCountFolders=0;
-					//string sLine;
-					MainForm.ShowMessageLine();
-					MainForm.ShowMessageLine("Adding files from \""+sFolder+"\"...");
-					//MainForm.ShowMessageLine(dirinfoStart.FullName);
-					foreach (DirectoryInfo dirinfoX in dirinfoStart.GetDirectories()) {
-						iDepth=1;
-						sFolderPreText=sFolderSymbol;
-						sFilePreText=sFileSymbol;
-						MainForm.ShowMessageLine(sFolderPreText+dirinfoX.FullName);
-						//MainForm.ShowMessageLine(dirinfoX.FullName);
-						SubList(dirinfoX);
-					}
-					//MainForm.ShowMessageLine("Listing...done.  Writing file...");
-					//MainForm.ShowMessageLine("Finished.");
-					//this.lblFinished.Visible=true;
-					//this.lblFinished.Show();
-					bBusy=false;
-				}
-			}
-			catch (Exception exn) {
-				MainForm.ShowError("Exception error during list ("+iCountFiles.ToString()+") files and "+iCountFolders+" folders so far: "+exn.ToString());
-			}
-		}
-		*/
-		public static void ShowError(string sErr) {
-			tbStatusStatic.Text=sErr;
-			if (iErrors<iMaxErrors) rtbOutputStatic.Text+=sErr+"\n";
-			else if (iErrors==iMaxErrors) {
-				rtbOutputStatic.Text+="Too many errors, so this is the last message that will be shown: \n"
-					+sErr+"\n";
-			}
-			Application.DoEvents();
-			iErrors++;
-		}
-		public static void ShowMessageLine() {
-			rtbOutputStatic.Text+="\n";
-			Application.DoEvents();
-		}
-		public static void ShowMessageLine(string sLine) {
-			ShowMessage(((sLine!=null)?sLine:"")+"\n");
-		}
-		public static void ShowMessage(string sMsg) {
-			try {
-				rtbOutputStatic.Text+=sMsg;
-				tbStatusStatic.Text=sMsg;
-				Application.DoEvents();
-			}
-			catch (Exception exn) {
-				//do not report this
-			}
-		}
-		public static bool SafeShow(string sNow) {
-			bool bShown=false;
-			string sTemp;
-			if (iErrorBoxesShown<1) {
-				if (sNow!=null) {
-					sTemp=sNow.Replace(" ","");
-					sTemp=sTemp.Replace("\n","");
-					sTemp=sTemp.Replace("\r","");
-					sTemp=sTemp.Replace("\t","");
-					if (sTemp!=null&&sTemp!="") {
-						sTemp=sNow;
-					}
-					else sTemp="Unknown Error";
-					MessageBox.Show(sTemp);
-					iErrorBoxesShown++;
-				}
-			}
-			return bShown;
-		}
-		public static string SafeDriveStringFromLabelOrRealRootString(string sValue) {
-			string sReturn="";
-			if (sValue==null) {
-				sReturn="";
-			}
-			else if (sValue.EndsWith(sDirSepString)) {
-				sReturn=sValue;
-			}
-			else if (sValue.EndsWith("/")) {
-				sReturn=sValue;
-			}
-			else if (sValue.EndsWith(":")) {
-				sReturn=sValue+sDirSepString; //OK only since already made sure that DirectorySeparatorChar isn't ":"
-			}
-			else {//else look for drive by label
-				int iLettersMaxUsed=0;
-				int iLettersMax=26;
-				int iFound=-1;
-				DriveInfo[] diarrList=null;
-				try {
-					diarrList=DriveInfo.GetDrives();
-					if (diarrList!=null) {
-						for (int iNow=0; iNow<diarrList.Length; iNow++) {
-							if ( diarrList[iNow].IsReady
-							    && diarrList[iNow].VolumeLabel==sValue) {
-								iFound=iNow;
-								break;
+				streamIn=new StreamReader(sFileX);
+				string sLine;
+				flisterNow=new FolderLister();
+				flisterNow.bShowFolders=true;
+				int iLine=0;
+				int iListedLines=0;
+				while ( (sLine=streamIn.ReadLine()) != null ) {
+					int iMarker=sLine.IndexOf(":");
+					if (iMarker>0 && sLine.Length>(iMarker+1)) {
+						string sCommand=sLine.Substring(0,iMarker).ToLower();
+						string sValue=sLine.Substring(iMarker+1);
+						if (sCommand.StartsWith("#")) {
+						    	//ignore
+					    }
+						else if (sCommand=="excludedest") {
+							alInvalidDrives.Add(sValue);
+							if (bDebug) Output("Not using "+sValue+" for backup");
+						}
+						else if (sCommand=="includedest") {
+							alExtraDestinations.Add(sValue);
+						}
+					    else if (sCommand=="exclude") {
+					    	FolderLister.alExclusions.Add(sValue);
+					    	string sTemp="";
+					    	foreach (string sExclusion in FolderLister.alExclusions) {
+					    		sTemp+=(sTemp==""?"":", ")+sExclusion;
+					    	}
+					    	if (bDebug) Output("#Exclusions changed: "+sTemp);
+					    }
+					    else if (sCommand=="include") {
+					    	FolderLister.alExclusions.Remove(sValue);
+					    	string sTemp="";
+					    	foreach (string sExclusion in FolderLister.alExclusions) {
+					    		sTemp+=(sTemp==""?"":", ")+sExclusion;
+					    	}
+					    	if (bDebug) Output("#Exclusions changed: "+sTemp);
+					    }
+						else if (sCommand=="addfile") {
+							BackupFile(sValue,false);
+						}
+						else if (sCommand=="addfolder") {
+							flisterNow.sSearchRoot=sValue;
+							string sDirSep=char.ToString(Path.DirectorySeparatorChar);
+							Output("Loading \""+flisterNow.sSearchRoot+"\"...");
+							string sTempFile=Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)+"FolderList.tmp";
+							//FolderLister.SetOutputFile(sTempFile);
+							flisterNow.StartRecordingLines();
+							flisterNow.Start();
+							btnCancel.Enabled=true;
+							while (flisterNow.IsBusy) {
+								Thread.Sleep(500);
+								mainformNow.Refresh();
+								Application.DoEvents();
 							}
-						}
-						if (iFound>=0) {
-							sReturn=diarrList[iFound].RootDirectory.ToString();
-							if (!sReturn.EndsWith(sDirSepString)) {
-								sReturn+=sDirSepString;//debug -- could this CAUSE a problem???
+							bBusyCopying=true;
+							Thread.Sleep(1000);
+							string[] sarrListed=flisterNow.GetLines();
+							//iListedLines=0;
+							if (sarrListed!=null&&sarrListed.Length>0) {
+								//if (File.Exists(sTempFile)) {
+								//	StreamReader streamTemp=new StreamReader(sTempFile);
+								//	string sLineNow;
+								//	while ( (sLineNow=streamTemp.ReadLine()) != null ) {
+								foreach (string sLineNow in sarrListed) {
+									iListedLines++;
+									FileAttributes fileattribNow = File.GetAttributes(sLineNow);
+									FileInfo fiNow=new FileInfo(sLineNow);
+									//if (fiNow.Attributes&FileAttributes.Directory
+									if ((fileattribNow & FileAttributes.Directory) == FileAttributes.Directory) {
+										ReconstructPathOnBackup(sLineNow);
+									}
+									else BackupFile(sLineNow,true);
+									if (bDebug) Output(sLineNow,true);
+									if (bCancel) {
+										bCancel=false;
+										break;
+									}
+								}
+								bBusyCopying=false;
+								btnCancel.Enabled=false;
+								//	}
+								//	streamTemp.Close();
+								//	File.Delete(sTempFile);
+								//	Thread.Sleep(500);
 							}
-							//System.Diagnostics.Process procNow=new System.Diagnostics.Process();
-							//System.Diagnostics.Process.Start(diarrList[iFound].RootDirectory.ToString());
+							else Output("Could not find any files in the added folder.");
 						}
-						else {//not found
-							SafeShow("Could not find drive labeled \""+sValue+"\" -- make sure that" +
-							                " the drive is connected and that your drive has actually been set to "+sValue);
-							sReturn="";
+						else if (sCommand=="exitifnousabledrivesfound") {
+							bExitIfNoUsableDrivesFound=ToBool(sValue);
 						}
-					}
-					else {
-						MainForm.ShowError("Your computer couldn't show a drive list.  It is possible that is program is not compatible with your computer or that a drive is not working properly.  If you have a modern desktop or laptop computer, it is more likely that one of your drives is busy with another task.");
-						sReturn="";
-					}
+					}//end if has ":" in right place
+					iLine++;
 				}
-				catch (Exception exn) {
-					MainForm.ShowError("Drive labeled not ready or not present.  \n\nError details:\n"+exn.ToString());
-					sReturn="";
-				}
+				//if (bDebug) {
+					Output("Finished reading "+sFileX+" (listed: "+iListedLines+").",true);
+				//}
+				bGood=true;
 			}
+			catch (Exception exn) {
+				string sMsg=sFileX+" could not be read.\n"+exn.ToString();
+				if (bDebug) MessageBox.Show(sMsg,"Backup GoNow");
+				Console.Error.WriteLine(sMsg);
+				bGood=false;
+			}
+			try {
+				if (streamIn!=null) streamIn.Close();
+			}
+			catch {}
+			return bGood;
+		}//end RunScript
+		public string GetBackupDest() {
+			string sReturn=this.cbDest.Text;
+			string sDirSep=char.ToString(Path.DirectorySeparatorChar);
+			if (!sReturn.EndsWith(sDirSep)) sReturn+=sDirSep;
 			return sReturn;
 		}
-		public static bool AssignVarByActionType(int iActionType, string sValue) {
-			bool bFound=false;
-			if (iActionType==Action.TypeSetTargetDrive) {
-				sTargetDriveRootWithSlash=SafeDriveStringFromLabelOrRealRootString(sValue);
-				//if (sTargetDriveRootWithSlash.Length<=0) { //do not do this yet.  Will be checked upon trying to run backup.
-			}
-			else if (iActionType==Action.TypeSetCommand) {
-				sCommand=sValue;
-			}
-			else if (iActionType==Action.TypeSetTargetFile) {
-				sTargetFile=sValue;
-			}
-			else if (iActionType==Action.TypeSetTargetFolder) {
-				sTargetDriveFolderNameOrIsADot=sValue;
-			}
-			return bFound;
-		}
-		public static bool CheckVars() {
-			bool bCheck= 
-					sTargetDriveFolderNameOrIsADot!=null && sTargetDriveFolderNameOrIsADot.Length>0
-				&&	sTargetFile!=null && sTargetFile.Length>0
-				&&	sTargetDriveRootWithSlash!=null && sTargetDriveRootWithSlash.Length>0
-				&&	sCommand!=null && sCommand.Length>0
-				&& alRootLines!=null && alRootLines.Count>0;
-			return bCheck;
-		}
-		public static int LoadSettingsFile() {
-			alRootLines=new ArrayList();
-			string sLine=" ";
-			string sValueSubstringNow;
-			int iSources=-1;//-1 is error state
-			int iLines=0;//not really used yet as of 2007-01
-			try {
-				if (File.Exists(sSettingsFileName)) {
-				    StreamReader srNow=new StreamReader(sSettingsFileName);
-					while (sLine != null) {
-				    	sLine = srNow.ReadLine();
-				    	if (sLine != null) {
-				    		if (sLine.Length>0 && !sLine.StartsWith("#")) { //ignores blank lines and comments
-				    			int iActionType=Action.FromLine(out sValueSubstringNow, sLine);
-				    			if (Action.IsUsable(iActionType)) {
-					    			if (Action.IsAssignment(iActionType)) {
-				    					AssignVarByActionType(iActionType,sValueSubstringNow);
-					    			}
-				    				else {
-				    					alRootLines.Add(sLine);
-					    				if (iSources==-1) iSources=1;
-					    				else iSources++;
-				    				}
-				    			}
-				    			else {
-				    				MainForm.ShowError("Parser could not interpret line action.");
-				    			}
-				    			iLines++;
-				    		}
-				    	}
-				    }
-				    srNow.Close();
-				}//end if settings file exists
-			}
-			catch (Exception exn) {
-				SafeShow("The failed to load the settings file.\n\n"+exn.ToString());
-				MainForm.ShowError("Exception during : "+exn.ToString());
-				iSources=-1;
-			}
-			return iSources;
-		}//end LoadSettingsFile()
-		public static bool AnyExists(string sLocation) {
-			FileInfo fiNow;
-			bool bReturn;
-			fiNow = new FileInfo(sLocation);
-			bReturn=fiNow.Exists;
-			if (!bReturn) {
-				DirectoryInfo diNow=new DirectoryInfo(sLocation);
-				bReturn=diNow.Exists;
-			}
-			return bReturn;
-		}
-		public static bool AddToBatch(string sLocation, bool IsFolder, bool DoSubfolders) {
-			bool bGood=false;
-			string sTargetNow;
-			try {
-				sTargetNow=sTargetDriveRootWithSlash
-					+((sTargetDriveFolderNameOrIsADot==".")?"":sTargetDriveFolderNameOrIsADot+sDirSepString)
-					+sTargetFile+"."+sCompressionMethod;
-				if (swBatch==null) {
-					if (sCommand=="replace" && AnyExists(sTargetNow)) {
-						File.Delete(sTargetNow);
-					}
-					swBatch=new StreamWriter(sBatch);
-				}
-				string sTypeNote=((IsFolder)?"folder":"file");
-				string sFolderNote=((DoSubfolders)?" with subfolders":(IsFolder?" without subfolders":" "));
-				string sLocAppend="";//(DoSubfolders&&IsFolder)?( ((!sLocation.EndsWith(MainForm.sDirSepString))?MainForm.sDirSepString:"") + "*" ):"";//TO NOT DO (would put them in the root of the zip instead of subfolder
-				MainForm.ShowMessage("Adding "+sTypeNote+sFolderNote+" \""+sLocation+sLocAppend+"\"...");
-				if (AnyExists(sLocation)) {
-					swBatch.WriteLine("REM copy "+sTypeNote+sFolderNote+":");
-					swBatch.WriteLine("7za "+((sCommand=="replace")?"a":"u")
-					                  +" -t"/*no space*/+sCompressionMethod+" \""+sTargetNow+"\" "
-					                  +"\""+sLocation+sLocAppend+"\""+" -y "+((DoSubfolders&&IsFolder)?"-r ":"-r- ")+"-mx9");
-					bGood=true;
-					MainForm.ShowMessageLine("Success.");
-				}
-				else {
-					bGood=false;//this will be noted by DoAllLists so no need to show error.
-					MainForm.ShowMessageLine("Failed.");
-					MainForm.ShowError("This file/folder does not exist, and will not be processed: \""+sLocation+"\".");
+		private static bool bShowReconstructedBackupPathError=true;
+		public string ReconstructedBackupPath(string sSrcPath) {
+			if (bDebug) Output("Reconstruction(as received): "+sSrcPath);
+			string sReturn=GetBackupDest();
+			string sSubPath=sSrcPath;
+			int iStart=0;
+			if (sSubPath[iStart]=='/') {
+				while (iStart<sSubPath.Length&&sSubPath[iStart]=='/') {
+					iStart++;
 				}
 			}
-			catch (Exception exn) {
-				MainForm.ShowError(exn.ToString());
-			}
-			return bGood;
-		}//end AddToBatch
-		public static bool RunBatch() {
-			bBusy=true;
-			if (bContinue==false)
-				return false;
-			
-			bool bGood=false;
-			try {
-				MainForm.ShowMessage("Finalizing script...");
-				try {swBatch.Close();}
-				catch (Exception exn) {
-					MainForm.ShowError("Couldn't close script: "+exn.ToString());
+			//else iStart=Chunker.IndexOfAnyDirectorySeparatorChar(sSubPath); //uncommenting this removes the "C" folder if using this program in windows to backup local files
+			string sDirSep=char.ToString(Path.DirectorySeparatorChar);
+			if (iStart>-1&&iStart<sSubPath.Length) {
+				sSubPath=sSubPath.Substring(iStart);
+				if (bDebug) Output("Reconstruction(before normalize): "+sSubPath);
+				sSubPath=Chunker.ConvertDirectorySeparatorsToNormal(sSubPath);
+				if (bDebug) Output("Reconstruction(before removedouble): "+sSubPath);
+				sSubPath=Chunker.RemoveDoubleDirectorySeparators(sSubPath);
+				if (sSubPath!=null&&sSubPath!=""&&sSubPath.StartsWith(sDirSep)) {
+					if (sSubPath.Length>1) sSubPath=sSubPath.Substring(1);
+					else sSubPath="";
 				}
-				MainForm.ShowMessageLine("Success.");
-				MainForm.ShowMessage("Running backup script...");
+			}
+			else sSubPath="";
 
-				Process proc = new Process();
-				// Redirect the output stream of the child process.
-				proc.StartInfo.UseShellExecute = false;
-				//proc.StartInfo.RedirectStandardError = true;
-				proc.StartInfo.FileName = sBatch;
-				proc.StartInfo.CreateNoWindow=true;
-				proc.StartInfo.WorkingDirectory=Application.StartupPath;
-				proc.Start();
-				proc.WaitForExit(); //TODO: make it async and stop if bContinue becomes false.
-				string sErr = "";
-				//sErr=proc.StandardOutput.ReadToEnd();
-				//try {
-				//	sErr=//was going to get it from file here.
-				//}
-				//catch (Exception exn) {//do not report this
-				//	sErr="";
-				//}
-				ShowMessageLine("Success.");
-				string sResult="Finished backup script.  Press OK to close.";
-				bGood=true;
-				if (sErr!=null && sErr.Length>0) sResult+=" with errors:\n"+sErr+"\n\nPress OK to close.";
-				else sResult+=".";
-				SafeShow(sResult);
-				Application.Exit();
-			}
-			catch (Exception exn) {
-				string sTemp="Exception error running backup script: \n\n"+exn.ToString();
-				MainForm.ShowError(sTemp);
-				SafeShow(sTemp);
-			}
-			return bGood;
-		}
-		public static void DoAllLists() {
-			int iActionNow=-1;
-			bool bGood=true;
-			string sActionValueSubstringNow;
-			try {
-				foreach (string sLine in alRootLines) {
-					iActionNow=Action.FromLine(out sActionValueSubstringNow, sLine);
-					if (Action.IsUsable(iActionNow) && !Action.IsAssignment(iActionNow)) {
-						if (iActionNow==Action.TypeFolderRecursive) {
-							//iMaxDepth=0;
-							//sFolder=sActionValueSubstringNow;
-							bGood=AddToBatch(sActionValueSubstringNow,true,true);
-						}
-						else if (iActionNow==Action.TypeFolder) {
-							//iMaxDepth=1;
-							//sFolder=sActionValueSubstringNow;
-							bGood=AddToBatch(sActionValueSubstringNow,true,false);
-						}
-						else if (iActionNow==Action.TypeFile) {
-							bGood=AddToBatch(sActionValueSubstringNow,false,false);
-						}
-						else bGood=false;
-					}
-					else {//else is unusable or is an assignment
-						bGood=false;
-					}
-					if (!bGood) MainForm.ShowError("One of the sources to backup (line: \""+sLine+"\") was not correctly specified in "+sSettingsFileName+" in "+Application.StartupPath);
+			if (sSubPath=="") {
+				if (bShowReconstructedBackupPathError) {
+					MessageBox.Show("The backup source cannot be parsed so these files will be placed in the root of \""+GetBackupDest()+"\".");
+					bShowReconstructedBackupPathError=false;
 				}
-				RunBatch();
+				sReturn=GetBackupDest();
 			}
-			catch (Exception exn) {
-				string sTemp="Exception Error processing list:\n\n"+exn.ToString();
-				SafeShow(sTemp);
-				MainForm.ShowError(sTemp);
-			}
+			else sReturn+=sSubPath;
+			if ( !sReturn.EndsWith(sDirSep) )
+				sReturn+=sDirSep;
+			return sReturn;
+		}//end ReconstructedBackupPath
+		public bool ReconstructPathOnBackup(string sSrcPath) {
+			string sBackupFolder=ReconstructedBackupPath(sSrcPath);
+			Chunker.CreateFolderRecursively(sBackupFolder);
+			if (bDebug) Output("Created \""+sBackupFolder+"\"");
+			return false;
 		}
-		void Go() {
-			bool bGood=true;
-			int iTargetsNow=-1;
+		public void BackupFile(string sSrcFilePath, bool bUseReconstructedPath) {
 			try {
-				if (AnyExists(sSettingsFileName)) {
-					iTargetsNow=LoadSettingsFile();
-					string sTemp;
-					if (iTargetsNow<1) {
-						sTemp="Error, no valid folders to backup were found.  See settings.txt";
-						SafeShow(sTemp);
-						bGood=false;
-					}
-					else if (CheckVars()) {
-						DoAllLists();
+				FileInfo fiSrc=new FileInfo(sSrcFilePath);
+				string sDirSep=char.ToString(Path.DirectorySeparatorChar);
+				if (fiSrc.Exists) {
+					string sBackupFolder=bUseReconstructedPath?ReconstructedBackupPath(fiSrc.Directory.FullName):this.cbDest.Text;
+					if (!sBackupFolder.EndsWith(sDirSep)) sBackupFolder+=sDirSep;
+					string sDestFile=sBackupFolder+fiSrc.Name;
+					FileInfo fiDest=new FileInfo(sDestFile);
+					if (fiDest.Exists) {
+						if (fiDest.LastWriteTime<fiSrc.LastWriteTime) {
+							if (!bDebug) File.Copy(sSrcFilePath,sDestFile,true);
+							Output("Updating: \""+sDestFile+"\"");
+						}
+						else {
+							//already newer or same timestamp so ignore
+							Output("Was Up to Date: \""+sDestFile+"\"");
+						}
 					}
 					else {
-						SafeShow("Error: Settings file is not complete.  See "+sSettingsFileName+" in "+Application.StartupPath+".");
-						bGood=false;
+						if (!bDebug) File.Copy(sSrcFilePath,sDestFile);
+						Output("Copied New: \""+sDestFile+"\"");
 					}
 				}
-				else {
-					SafeShow("Error: Settings file not found.");//TODO: show configuration info here
-				}
+				else Output("Could not find \""+sSrcFilePath+"\"");
 			}
 			catch (Exception exn) {
-				SafeShow("Program failed to load.\n\n"+exn.ToString());
-				MainForm.ShowError("Exception during program load: "+exn.ToString());
+				Console.Error.WriteLine("Error in BackupFile: ");
+				Console.Error.WriteLine(exn.ToString());
+				Console.Error.WriteLine();
 			}
-			Application.Exit();
+		}//end BackupFile
+		public static bool bShowOutputException=true;
+		public void Output(string sLineX) {
+			Output(sLineX,false);
 		}
-		void MainFormLoad(object sender, System.EventArgs e) {
-			timerStart.Enabled=true;
-			timerStart.Interval=500;
-			timerStart.Start();
-			//Application.DoEvents();
-			//Go();
-		}
-		
-		void MainFormFormClosing(object sender, System.EventArgs e)//System.Windows.Forms.FormClosingEventArgs e)
-		{
-			bContinue=false;
-		}
-		
-		void MainFormFormClosed(object sender, System.EventArgs e)//System.Windows.Forms.FormClosedEventArgs e)
-		{
-		}
-		bool bDone=false;
-		void TimerStartTick(object sender, System.EventArgs e) {
-			if (!bDone) {
-				bDone=true;
-				timerStart.Enabled=false;//must happen BEFORE go
-				Go();
+		private static ArrayList alDisplayQueue=new ArrayList();
+		public void Flush() {
+			if (alDisplayQueue!=null&&alDisplayQueue.Count>0) {
+				lbOutNow.BeginUpdate();
+				foreach (string sNow in alDisplayQueue) {
+					lbOutNow.Items.Add(sNow);
+				}
+				lbOutNow.EndUpdate();
+				MainForm.lbOutNow.SelectedIndex=MainForm.lbOutNow.Items.Count-1;
+				lbOutNow.Refresh();
+				Application.DoEvents();
+				mainformNow.Refresh();
+				alDisplayQueue.Clear();
+				iTickLastRefresh=Environment.TickCount;
 			}
-			timerStart.Enabled=false;//intentionally redundant
+		}
+		public void Output(string sLineX, bool bForceRefresh) {
+			try {
+				alDisplayQueue.Add(sLineX);
+				if ( bForceRefresh || (Environment.TickCount-iTickLastRefresh>iTicksRefreshInterval) ) Flush();
+			}
+			catch (Exception exn) {
+				if (bShowOutputException) {
+					MessageBox.Show("Exception in Output: \n\n"+exn.ToString());
+					bShowOutputException=false;
+				}
+			}
 		}
 		
-		void RtbOutputTextChanged(object sender, System.EventArgs e)
+		bool ValidDest(string sDrivePath) {
+			bool bValid=true;
+			foreach (string sInvalid in alInvalidDrives) {
+				if (sDrivePath.ToLower()==sInvalid.ToLower()) {
+					bValid=false;
+					break;
+				}
+			}
+			return bValid;
+		}
+		
+		void CbDestSelectedIndexChanged(object sender, EventArgs e)
 		{
 			
 		}
-	}
-}
+		
+		void BtnGoClick(object sender, EventArgs e)
+		{
+			if (this.cbDest.Text!="") {
+				btnGo.Enabled=false;
+				bUserCancelledLastRun=false;
+				if (!RunScript(sFileScript)) MessageBox.Show("Backup was not complete.");
+				else {
+					if (!bUserCancelledLastRun) MessageBox.Show("Finished Backup");
+					else MessageBox.Show("Cancelled Backup");
+					if (!bDebug) Application.Exit();
+				}
+			}
+			else {
+				MessageBox.Show("No destination drive is present.");
+			}
+		}
+		
+		void MainFormLoad(object sender, EventArgs e)
+		{
+			DateTime datetimeNow = DateTime.Now;
+			string sFileErrLog = "1.ErrLog.txt";//"1.Errors "+datetimeNow.ToString("yyyyMMddHHmm") + ".log";
+			TextWriter errStream = new StreamWriter(sFileErrLog);
+			string sMyProcess = Assembly.GetExecutingAssembly().Location;
+			//sMyProcess = sMyProcess.Substring(sMyProcess.LastIndexOf('\\') + 1);
+			Console.SetError(errStream);
+			Console.Error.Write("{0}", sMyProcess);
+			Console.Error.WriteLine(": started at {0}.", datetimeNow);
+			Console.Error.WriteLine();
+			bCloseErrorRedirect=true;
+      
+			FolderLister.bDebug=bDebug;
+			Chunker.bDebug=bDebug;
+			lbOutNow=this.lbOut;
+			RunScript(sFileMain);
+			cbDest.BeginUpdate();
+			cbDest.Items.Clear();
+			string[] sarrDrive=Environment.GetLogicalDrives();
+			foreach (string sDrivePathNow in sarrDrive) {
+				if (ValidDest(sDrivePathNow)) {
+					cbDest.Items.Add(sDrivePathNow);
+					iValidDrivesFound++;
+					iDestinations++;
+				}
+			}
+			foreach (string sExtraDest in alExtraDestinations) {
+				cbDest.Items.Add(sExtraDest);
+				iDestinations++;
+			}
+			cbDest.EndUpdate();
+			
+			
+			//FolderLister.Echo("Test");
+			string sMsg="No backup drive can be found.  Try connecting the drive and then try again.";
+			if (iValidDrivesFound+iDestinations>0) {
+				if (bExitIfNoUsableDrivesFound&&iValidDrivesFound==0) {
+					MessageBox.Show(sMsg);
+					Application.Exit();
+				}
+				cbDest.SelectedIndex=0;
+			}
+			else {
+				MessageBox.Show(sMsg);
+				if (!bDebug) Application.Exit();
+			}
+			CalculateMargins();
+			FixSize();
+		}
+		
+		void CalculateMargins() {
+			iLBRightMargin=this.Width-(lbOut.Left+lbOut.Width);
+			iLBBottomMargin=this.Height-(lbOut.Top+lbOut.Height);
+		}
+		
+		void FixSize() {
+			lbOut.Width=this.Width-(iLBRightMargin+lbOut.Left);
+			lbOut.Height=this.Height-(iLBBottomMargin+lbOut.Top);
+			btnGo.Left=(this.Width-btnGo.Width)/2;
+		}
+
+		void CbDestTextChanged(object sender, EventArgs e)
+		{
+			bool bFound=false;
+			foreach (string sNow in cbDest.Items) {
+				if (cbDest.Text==sNow) bFound=true;
+			}
+			if (!bFound) cbDest.SelectedIndex=0;
+			
+		}
+		
+		void MainFormResize(object sender, EventArgs e)
+		{
+			FixSize();
+		}
+		
+		void MainFormFormClosed(object sender, FormClosedEventArgs e)
+		{
+	      if (bCloseErrorRedirect) Console.Error.Close();
+		}
+		
+		void BtnCancelClick(object sender, EventArgs e)
+		{
+			if (bBusyCopying) {
+				bCancel=true;
+				btnCancel.Enabled=false;
+				bUserCancelledLastRun=true;
+			}
+			else {
+				if (flisterNow!=null&&flisterNow.IsBusy) flisterNow.Stop();
+				btnCancel.Enabled=false;
+				bUserCancelledLastRun=true;
+			}
+		}
+	}//end MainForm
+}//end namespace

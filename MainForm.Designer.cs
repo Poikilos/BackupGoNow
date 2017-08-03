@@ -1,13 +1,14 @@
-/*
- *  Created by SharpDevelop (To change this template use Tools | Options | Coding | Edit Standard Headers).
- * User: Jake Gustafson (Owner)
- * Date: 1/25/2007
- * Time: 10:08 AM
+﻿/*
+ * Created by SharpDevelop.
+ * User: Owner
+ * Date: 10/5/2008
+ * Time: 12:21 PM
  * 
+ * To change this template use Tools | Options | Coding | Edit Standard Headers.
  */
-namespace GoNowBackup
+namespace OrangejuiceElectronica
 {
-	partial class MainForm : System.Windows.Forms.Form
+	partial class MainForm
 	{
 		/// <summary>
 		/// Designer variable used to keep track of non-visual components.
@@ -35,54 +36,83 @@ namespace GoNowBackup
 		/// </summary>
 		private void InitializeComponent()
 		{
-			this.components = new System.ComponentModel.Container();
-			this.tbStatus = new System.Windows.Forms.TextBox();
-			this.timerStart = new System.Windows.Forms.Timer(this.components);
-			this.rtbOutput = new System.Windows.Forms.RichTextBox();
+			this.btnGo = new System.Windows.Forms.Button();
+			this.cbDest = new System.Windows.Forms.ComboBox();
+			this.lbOut = new System.Windows.Forms.ListBox();
+			this.lblDest = new System.Windows.Forms.Label();
+			this.btnCancel = new System.Windows.Forms.Button();
 			this.SuspendLayout();
 			// 
-			// tbStatus
+			// btnGo
 			// 
-			this.tbStatus.BackColor = System.Drawing.SystemColors.ActiveBorder;
-			this.tbStatus.Dock = System.Windows.Forms.DockStyle.Bottom;
-			this.tbStatus.Location = new System.Drawing.Point(0, 329);
-			this.tbStatus.Name = "tbStatus";
-			this.tbStatus.Size = new System.Drawing.Size(464, 24);
-			this.tbStatus.TabIndex = 0;
+			this.btnGo.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+			this.btnGo.Location = new System.Drawing.Point(29, 12);
+			this.btnGo.Name = "btnGo";
+			this.btnGo.Size = new System.Drawing.Size(285, 23);
+			this.btnGo.TabIndex = 0;
+			this.btnGo.Text = "Go";
+			this.btnGo.UseVisualStyleBackColor = true;
+			this.btnGo.Click += new System.EventHandler(this.BtnGoClick);
 			// 
-			// timerStart
+			// cbDest
 			// 
-			this.timerStart.Interval = 5000;
-			this.timerStart.Tick += new System.EventHandler(this.TimerStartTick);
+			this.cbDest.FormattingEnabled = true;
+			this.cbDest.Location = new System.Drawing.Point(112, 41);
+			this.cbDest.Name = "cbDest";
+			this.cbDest.Size = new System.Drawing.Size(121, 21);
+			this.cbDest.TabIndex = 1;
+			this.cbDest.SelectedIndexChanged += new System.EventHandler(this.CbDestSelectedIndexChanged);
+			this.cbDest.TextChanged += new System.EventHandler(this.CbDestTextChanged);
 			// 
-			// rtbOutput
+			// lbOut
 			// 
-			this.rtbOutput.Dock = System.Windows.Forms.DockStyle.Fill;
-			this.rtbOutput.Location = new System.Drawing.Point(0, 0);
-			this.rtbOutput.Name = "rtbOutput";
-			this.rtbOutput.ReadOnly = true;
-			this.rtbOutput.Size = new System.Drawing.Size(464, 329);
-			this.rtbOutput.TabIndex = 1;
-			this.rtbOutput.Text = "";
-			this.rtbOutput.TextChanged += new System.EventHandler(this.RtbOutputTextChanged);
+			this.lbOut.FormattingEnabled = true;
+			this.lbOut.Location = new System.Drawing.Point(29, 79);
+			this.lbOut.Name = "lbOut";
+			this.lbOut.Size = new System.Drawing.Size(238, 147);
+			this.lbOut.TabIndex = 2;
+			// 
+			// lblDest
+			// 
+			this.lblDest.Location = new System.Drawing.Point(6, 44);
+			this.lblDest.Name = "lblDest";
+			this.lblDest.Size = new System.Drawing.Size(100, 22);
+			this.lblDest.TabIndex = 3;
+			this.lblDest.Text = "Destination:";
+			this.lblDest.TextAlign = System.Drawing.ContentAlignment.TopRight;
+			// 
+			// btnCancel
+			// 
+			this.btnCancel.Enabled = false;
+			this.btnCancel.Location = new System.Drawing.Point(239, 41);
+			this.btnCancel.Name = "btnCancel";
+			this.btnCancel.Size = new System.Drawing.Size(75, 23);
+			this.btnCancel.TabIndex = 4;
+			this.btnCancel.Text = "Cancel";
+			this.btnCancel.UseVisualStyleBackColor = true;
+			this.btnCancel.Click += new System.EventHandler(this.BtnCancelClick);
 			// 
 			// MainForm
 			// 
-			//this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 17F);
-			//this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-			this.ClientSize = new System.Drawing.Size(464, 353);
-			this.Controls.Add(this.rtbOutput);
-			this.Controls.Add(this.tbStatus);
+			this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
+			this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+			this.ClientSize = new System.Drawing.Size(336, 257);
+			this.Controls.Add(this.btnCancel);
+			this.Controls.Add(this.lblDest);
+			this.Controls.Add(this.lbOut);
+			this.Controls.Add(this.cbDest);
+			this.Controls.Add(this.btnGo);
 			this.Name = "MainForm";
-			this.Text = "GoNowBackup";
-			//this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.MainFormFormClosed);
-			this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.MainFormFormClosing);
+			this.Text = "Backup GoNow";
+			this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.MainFormFormClosed);
+			this.Resize += new System.EventHandler(this.MainFormResize);
 			this.Load += new System.EventHandler(this.MainFormLoad);
 			this.ResumeLayout(false);
-			this.PerformLayout();
 		}
-		private System.Windows.Forms.RichTextBox rtbOutput;
-		private System.Windows.Forms.Timer timerStart;
-		private System.Windows.Forms.TextBox tbStatus;
+		private System.Windows.Forms.Button btnCancel;
+		private System.Windows.Forms.Label lblDest;
+		private System.Windows.Forms.ListBox lbOut;
+		private System.Windows.Forms.Button btnGo;
+		private System.Windows.Forms.ComboBox cbDest;
 	}
 }
