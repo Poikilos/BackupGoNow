@@ -2,7 +2,7 @@
 Microsoft Visual Studio Solution File, Format Version 9.00
 # Visual Studio 2005
 # SharpDevelop 2.2.1.2648
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Backup GoNow", "Backup GoNow.csproj", "{842EE6F7-FCFA-4685-87C6-AD7E10343EFE}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Backup GoNow", "Backup GoNow.csproj", "{88A5A638-95E5-4085-8453-17E6C9A6ABCA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -10,9 +10,9 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{842EE6F7-FCFA-4685-87C6-AD7E10343EFE}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{842EE6F7-FCFA-4685-87C6-AD7E10343EFE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{842EE6F7-FCFA-4685-87C6-AD7E10343EFE}.Release|Any CPU.Build.0 = Release|Any CPU
-		{842EE6F7-FCFA-4685-87C6-AD7E10343EFE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{88A5A638-95E5-4085-8453-17E6C9A6ABCA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{88A5A638-95E5-4085-8453-17E6C9A6ABCA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{88A5A638-95E5-4085-8453-17E6C9A6ABCA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{88A5A638-95E5-4085-8453-17E6C9A6ABCA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 	EndGlobalSection
 EndGlobal

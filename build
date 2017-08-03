@@ -1,0 +1,3 @@
+#SET PATH=%PATH%;C:\WINDOWS\Microsoft.NET\Framework\v2.0.50727
+mv "bin\Backup GoNow.exe" "bin\Backup GoNow.exe.wip"
+gmcs /target:winexe /out:"bin\Backup GoNow.exe" /win32icon:BackupGoNow.ico LocInfo.cs MainForm.cs MainForm.Designer.cs Program.cs ..\..\FolderLister\src\FolderLister.cs ..\..\UniWinForms\src\Chunker.cs /resource:MainForm.resx,MainForm /r:System.Drawing.dll /r:System.Windows.Forms.dll /r:System.Data.dll /r:System.Xml.dll

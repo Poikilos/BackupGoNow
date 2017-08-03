@@ -1,0 +1,3 @@
+#!/bin/sh
+cd "/home/owner/Projects/Backup GoNow/bin"
+mono "Backup GoNow.exe"
