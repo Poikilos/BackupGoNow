@@ -27,5 +27,5 @@ rm ./share/profiles/BackupGoNowDefault/summary.log
 * accumulate changes to README.md file of each version
 * accumulate release notes that were in install.bat and place in README.md file of each related version
 	* first changelog was found in 2012-05-21; however, 2017-04-14 readme was missing some stuff from that previous one so has now been added to the later one; versions between those had no changes (except 2017-07-12, so known Changes have now been noted
-* "YAML-like" should be excluded from the summary until profiles version
+* "good defaults" should be excluded from the summary until profiles version
 * add key features section to README
