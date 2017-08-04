@@ -135,6 +135,7 @@ A backup program that anyone can use the first time, with good defaults!
 ## Developer Notes
 * This program requires Microsoft® .NET® framework 2.0 compiler or later, or Mono 2.0 compiler or later to compile.
 * Any files in folder named "share" may need to be placed in the working directory of the program
+* Requires Common.cs from [ForwardFileSync](https://github.com/expertmm/ForwardFileSync)
 * main.ini should always exclude the following standard labels of recovery drives:
 	```
 	#next line is for Windows 8 (R) default C: drive label on computers such as Lenovo (R) laptop circa 2014
