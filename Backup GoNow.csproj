@@ -4,7 +4,7 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <OutputType>WinExe</OutputType>
-    <RootNamespace>Backup_GoNow</RootNamespace>
+    <RootNamespace>ExpertMultimedia</RootNamespace>
     <AssemblyName>Backup GoNow</AssemblyName>
     <OutputPath>bin\</OutputPath>
     <AllowUnsafeBlocks>False</AllowUnsafeBlocks>
