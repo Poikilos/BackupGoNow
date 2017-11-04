@@ -1954,7 +1954,7 @@ namespace ExpertMultimedia {
 							newDeleteButton.Enabled = clear_buttons_enabled;
 							newDeleteButton.Text = "Clear";
 							newDeleteButton.UseVisualStyleBackColor = true;
-							newDeleteButton.Click += new System.EventHandler(this.AnyDeleteOptionIndexButtonClick);
+							newDeleteButton.Click += new System.EventHandler(this.AnyRemoveOptionIndexButtonClick);
 							optionsTableLayoutPanel.Controls.Add(newDeleteButton, optionColumnIndex_DeleteButton, atRowIndex);
 						}
 						if (line.StartsWith("#")) optionsTableLayoutPanel.RowStyles[atRowIndex].Height=0;
@@ -1975,7 +1975,7 @@ namespace ExpertMultimedia {
 		/// </summary>
 		/// <param name="sender"></param>
 		/// <param name="e"></param>
-		void AnyDeleteOptionIndexButtonClick(object sender, EventArgs e) {
+		void AnyRemoveOptionIndexButtonClick(object sender, EventArgs e) {
 			Button senderButton = sender as Button;
 			string line = (string)senderButton.Tag;
 			lbOut.Items.Add("Clicked "+line);
@@ -2241,7 +2241,6 @@ namespace ExpertMultimedia {
 			StreamWriter mainStream=null;
 			try {
 				mainStream=new StreamWriter(filename);
-				mainStream.WriteLine(@"ExcludeDest:/");
 				mainStream.WriteLine(@"ExcludeDest:Windows8_OS");
 				mainStream.WriteLine(@"ExcludeDest:LENOVO");
 				mainStream.WriteLine(@"ExcludeDest:HP_RECOVERY");
@@ -2250,9 +2249,16 @@ namespace ExpertMultimedia {
 				mainStream.WriteLine(@"ExcludeDest:FACTORY_IMAGE");
 				mainStream.WriteLine(@"ExcludeDest:Recovery");
 				mainStream.WriteLine(@"ExcludeDest:DELLUTILITY");
-				mainStream.WriteLine(@"ExcludeDest:/sys");
-				mainStream.WriteLine(@"ExcludeDest:/home");
-				mainStream.WriteLine(@"ExcludeDest:C:\");
+                try {
+					if (Directory.Exists ("C:\\")) mainStream.WriteLine ("ExcludeDest:C:\\");
+					//some versions of .NET seem to crash if unix-like path is checked on Windows 
+					if (Directory.Exists ("/")) mainStream.WriteLine ("ExcludeDest:/");
+					if (Directory.Exists("/sys")) mainStream.WriteLine("ExcludeDest:/sys");
+					if (Directory.Exists ("/home")) mainStream.WriteLine("ExcludeDest:/home");
+				}
+                catch {
+                    //don't care
+                }
 				mainStream.WriteLine(@"ExitIfNoUsableDrivesFound:yes");
 				mainStream.WriteLine(@"AlwaysStayOpen:no");
 				mainStream.Close();
@@ -2702,20 +2708,20 @@ namespace ExpertMultimedia {
 					thisTableLayoutPanel.Controls.Add(newValueLabel,optionColumnIndex_Value,atRowIndex);//thisCommandCell.Controls.Add(newCommandLabel);
 				
 				
-					System.Windows.Forms.Button newDeleteButton;
-					newDeleteButton = new System.Windows.Forms.Button();
-					newDeleteButton.Anchor = System.Windows.Forms.AnchorStyles.Left;
-					newDeleteButton.AutoSize = true;
-					newDeleteButton.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-					newDeleteButton.Location = new System.Drawing.Point(0, 0);
-					newDeleteButton.Name = "row"+atRowIndex.ToString()+"DeleteButton";
-					newDeleteButton.Tag = "DeleteOptionIndex:"+atRowIndex.ToString();
-					newDeleteButton.Size = new System.Drawing.Size(75, 21);
-					newDeleteButton.TabIndex = 0;
-					newDeleteButton.Text = "Clear";
-					newDeleteButton.UseVisualStyleBackColor = true;
-					newDeleteButton.Click += new System.EventHandler(this.AnyDeleteOptionIndexButtonClick);
-					optionsTableLayoutPanel.Controls.Add(newDeleteButton, optionColumnIndex_DeleteButton, atRowIndex);
+					System.Windows.Forms.Button newRemoveButton;
+					newRemoveButton = new System.Windows.Forms.Button();
+					newRemoveButton.Anchor = System.Windows.Forms.AnchorStyles.Left;
+					newRemoveButton.AutoSize = true;
+					newRemoveButton.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+					newRemoveButton.Location = new System.Drawing.Point(0, 0);
+					newRemoveButton.Name = "row"+atRowIndex.ToString()+"DeleteButton";
+					newRemoveButton.Tag = "DeleteOptionIndex:"+atRowIndex.ToString();
+					newRemoveButton.Size = new System.Drawing.Size(75, 21);
+					newRemoveButton.TabIndex = 0;
+					newRemoveButton.Text = "Remove";
+					newRemoveButton.UseVisualStyleBackColor = true;
+                    newRemoveButton.Click += new System.EventHandler(this.AnyRemoveOptionIndexButtonClick);
+                    optionsTableLayoutPanel.Controls.Add(newRemoveButton, optionColumnIndex_DeleteButton, atRowIndex);
 				}
 				optionsTableLayoutPanel.ScrollControlIntoView(newCommandLabel);
 				SaveOptions();
