@@ -56,7 +56,10 @@ A backup program that anyone can use the first time, with good defaults!
 * (2007-01-25) prevent pushing button twice from crashing program
 
 ## Known Issues
-* Should note to safely eject drive (or provide option to do that)
+* ignore $HOME/.cache by default in BackupGonow (and add this to goldingot profile in .config):
+  such as $HOME/.cache/chromium/Default/Media Cache
+  Make this work correctly: Exclude:.cache
+* (~) note to safely eject drive (or provide option to do that)
 * Does not seem to backup any files into "old" folder (for files changed after previous backup), though folders are created (also, avoid issue where path may exceed limit--which may solve overall problem).
 * Fix nonsensical read permission errors when copying files from own profile (see end of "C:\Users\Owner\AppData\Roaming\Backup GoNow\1.LastRun Output (read errors when copying).txt")
 	such as:
