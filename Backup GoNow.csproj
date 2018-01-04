@@ -6,7 +6,6 @@
     <OutputType>WinExe</OutputType>
     <RootNamespace>ExpertMultimedia</RootNamespace>
     <AssemblyName>Backup GoNow</AssemblyName>
-    <OutputPath>bin\</OutputPath>
     <AllowUnsafeBlocks>False</AllowUnsafeBlocks>
     <NoStdLib>False</NoStdLib>
     <WarningLevel>4</WarningLevel>
@@ -27,6 +26,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ApplicationIcon>debug.ico</ApplicationIcon>
     <StartAction>Project</StartAction>
+    <OutputPath>bin\Debug</OutputPath>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
     <DebugSymbols>false</DebugSymbols>
@@ -35,6 +35,7 @@
     <CheckForOverflowUnderflow>False</CheckForOverflowUnderflow>
     <DefineConstants>TRACE</DefineConstants>
     <ApplicationIcon>BackupGoNow.ico</ApplicationIcon>
+    <OutputPath>bin\Release</OutputPath>
   </PropertyGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.Targets" />
   <ItemGroup>

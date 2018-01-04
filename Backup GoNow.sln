@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 9.00
 # Visual Studio 2005
-# SharpDevelop 4.2.2.8818
+# SharpDevelop 3.2.1.6466
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Backup GoNow", "Backup GoNow.csproj", "{88A5A638-95E5-4085-8453-17E6C9A6ABCA}"
 EndProject
 Global

@@ -26,7 +26,7 @@ namespace ExpertMultimedia {
 	/// Description of MainForm.
 	/// </summary>
 	public partial class MainForm : Form {
-		public static string sMyNameAndVersion="Backup GoNow 2017-04-14";
+		public static string sMyNameAndVersion="Backup GoNow 2018-01-03";
 		public static string sMyName="Backup GoNow";
 		//ArrayList alPseudoRootsNow=null;
 		//ArrayList alSelectableDrives=null;
@@ -94,6 +94,10 @@ namespace ExpertMultimedia {
 		public static int optionColumnIndex_Command=0;
 		public static int optionColumnIndex_Value=1;
 		public static int optionColumnIndex_DeleteButton=2;
+		public static bool useLastDirectoryDREnable=false;
+		public static bool useLastFileDREnable=false;
+		public static DialogResult lastDirectoryDR=DialogResult.None;
+		public static DialogResult lastFileDR=DialogResult.None;
 		//private static FolderLister flisterNow=null;
 		//private static bool bBusyCopying=false;
 		private static bool bExitIfNoUsableDrivesFound=false;
@@ -384,7 +388,15 @@ namespace ExpertMultimedia {
 							string diDest_Retroactive_FullName = Path.Combine(diDest_Retroactive_Parent_FullName, diDest.Name);
 							MainForm.Output("Removing deleted/moved folder to retroactive folder: "+diDest_Retroactive_FullName,true);
 							Application.DoEvents();
-							DialogResult thisDR = MessageBox.Show("A folder was deleted after the last backup:\n "+diDest.FullName+"\n\n Do you want to move the backup to a retroactive backup\n "+diDest_Retroactive_FullName+"\n (press No to Delete; YES is recommended)","Backup GoNow",MessageBoxButtons.YesNoCancel);
+							DialogResult thisDR=DialogResult.None;
+							if (!useLastDirectoryDREnable || (lastDirectoryDR==DialogResult.None)) {
+								string this_msg="A folder was deleted after the last backup:\n "+diDest.FullName+"\n\n Do you want to move the backup to a retroactive backup\n "+diDest_Retroactive_FullName+"\n (press No to Delete; YES is recommended)";
+								if (useLastDirectoryDREnable) this_msg+=" (your answer will be remembered for this session)";
+								this_msg+="?";
+								thisDR=MessageBox.Show(this_msg,"Backup GoNow",MessageBoxButtons.YesNoCancel);
+								lastDirectoryDR=thisDR;
+							}
+							else thisDR=lastDirectoryDR;
 							if (thisDR==DialogResult.Yes) {
 								try {
 									Directory.CreateDirectory(diDest_Retroactive_Parent_FullName);
@@ -397,6 +409,13 @@ namespace ExpertMultimedia {
 							}
 							else if (thisDR==DialogResult.No) {
 								DeleteFolderRecursively(diDest,true);//use my method so that lByteCountTotalActuallyAdded is decremented//diDest.Delete(true);
+							}
+							else {
+								if (!bUserCancelledLastRun) {
+									//if (flisterNow!=null&&flisterNow.IsBusy) flisterNow.Stop();
+									cancelButton.Enabled=false;
+									bUserCancelledLastRun=true;
+								}
 							}
 							//else leave it on the backup
 						}
@@ -439,10 +458,11 @@ namespace ExpertMultimedia {
 							string fiDest_Retroactive_FullName = Path.Combine( fiDest_Parent_FullName, fiDest.Name );
 							try {
 								Directory.CreateDirectory(fiDest_Parent_FullName);
+								fiDest.MoveTo(fiDest_Retroactive_FullName);
 							}
 							catch (Exception exn) {
 								DialogResult thisDR=MessageBox.Show("This file:\n "+fiDest.FullName+"\n could not be moved to retroactive file \n"+fiDest_Retroactive_FullName+"\n Do you want to keep it anyway (Yes is recommended)?","Backup GoNow",MessageBoxButtons.YesNo);
-								if (thisDR== DialogResult.No) {
+								if (thisDR==DialogResult.No) {
 									fiDest.Delete();
 								}
 								WriteLastRunLog("Could not finish making file \""+fiDest.FullName+"\" retroactive as \""+fiDest_Retroactive_FullName+"\""+exn.ToString());
@@ -799,6 +819,9 @@ namespace ExpertMultimedia {
 				sReturn=Path.Combine(DestinationDriveRootDirectory_FullName_OrSlashIfRootDir,DestSubfolderRelNameThenSlash);
 			}
 			if (retroactive_string!=null) {
+				if (retroactive_string.StartsWith(char.ToString(Path.DirectorySeparatorChar))) {
+					retroactive_string=retroactive_string.Substring(1);
+				}
 				sReturn=Path.Combine(sReturn,retroactive_string);
 			}
 			string sDestAppend=sSrcPath;
@@ -832,6 +855,7 @@ namespace ExpertMultimedia {
 			else sReturn+=sDestAppend;
 			if ( !sReturn.EndsWith(Common.sDirSep) )
 				sReturn+=Common.sDirSep;
+			Console.Error.WriteLine("ReconstructedBackupPath: {sReturn:'"+sReturn+"', sSrcPath: '"+sSrcPath+"', retroactive_string: "+((retroactive_string!=null)?("'"+retroactive_string+"'"):"null")+"}");
 			return sReturn;
 		}//end ReconstructedBackupPath
 		/*
@@ -1539,6 +1563,9 @@ namespace ExpertMultimedia {
 						}
 						if (bTestOnly) Output("#Exclusions changed: "+sTemp);
 					}
+					else if (sCommandLower=="uselastretroactivedirectoryanswer") {
+						useLastDirectoryDREnable=ToBool(sValue);
+					}
 					else if (sCommandLower=="include") {
 						if (sValue=="*") Common.excluded_names.Clear();
 						else Common.excluded_names.Remove(sValue);
@@ -2110,8 +2137,8 @@ namespace ExpertMultimedia {
 		void MenuitemEditMainClick(object sender, EventArgs e) {
 			try {
 				string file_FullName=Path.Combine(BackupProfileFolder_FullName,MainScriptFile_Name);
-				DialogResult dlgresult=MessageBox.Show(Common.LimitedWidth("In order for any changes you make to the file that is about to open (\""+file_FullName+"\") to take effect, you must save it, close "+sMyName+" then open the "+sMyName+" icon again.",40,"\n",true), sMyName, MessageBoxButtons.OKCancel);
-				if (dlgresult==DialogResult.OK) System.Diagnostics.Process.Start(file_FullName);
+				DialogResult thisDR=MessageBox.Show(Common.LimitedWidth("In order for any changes you make to the file that is about to open (\""+file_FullName+"\") to take effect, you must save it, close "+sMyName+" then open the "+sMyName+" icon again.",40,"\n",true), sMyName, MessageBoxButtons.OKCancel);
+				if (thisDR==DialogResult.OK) System.Diagnostics.Process.Start(file_FullName);
 			}
 			catch (Exception exn) {
 				Common.ShowExn(exn,"opening "+Common.SafeString(MainScriptFile_Name,true)+" for profile","menuitemEditMainClick");
@@ -2121,8 +2148,8 @@ namespace ExpertMultimedia {
 		void MenuitemEditScriptClick(object sender, EventArgs e) {
 			try {
 				string file_FullName=Path.Combine(BackupProfileFolder_FullName,BackupScriptFile_Name);
-				DialogResult dlgresult=MessageBox.Show(Common.LimitedWidth("The file that is about to open (\""+file_FullName +"\") must be saved before pressing \"Go\" (in "+sMyName+") in order for any changes you make to be used.",40,"\n",true), sMyName, MessageBoxButtons.OKCancel);
-				if (dlgresult==DialogResult.OK) System.Diagnostics.Process.Start(file_FullName);
+				DialogResult thisDR=MessageBox.Show(Common.LimitedWidth("The file that is about to open (\""+file_FullName +"\") must be saved before pressing \"Go\" (in "+sMyName+") in order for any changes you make to be used.",40,"\n",true), sMyName, MessageBoxButtons.OKCancel);
+				if (thisDR==DialogResult.OK) System.Diagnostics.Process.Start(file_FullName);
 			}
 			catch (Exception exn) {
 				Common.ShowExn(exn,"opening \""+BackupScriptFile_Name+"\" in profile","menuitemEditScriptClick");
@@ -2277,9 +2304,10 @@ namespace ExpertMultimedia {
 				backupStream.WriteLine(@"Exclude:Temp");
 				backupStream.WriteLine(@"Exclude:Cache");
 				backupStream.WriteLine(@"Exclude:Temporary Internet Files");
+				backupStream.WriteLine(@"Exclude:Media Cache");
 				backupStream.WriteLine(@"Exclude:Thumbs.db");
 				backupStream.WriteLine(@"Exclude:.git");
-				backupStream.WriteLine(@"Exclude:__pychache__");
+				backupStream.WriteLine(@"Exclude:__pycache__");
 				backupStream.WriteLine(@"Exclude:*.pyc");
 				backupStream.WriteLine(@"Exclude:NTUSER.DAT");
 				backupStream.WriteLine(@"Exclude:UsrClass.dat");
@@ -2320,10 +2348,90 @@ namespace ExpertMultimedia {
 			}
 			catch {}//don't care
 		}
-		
+		public static FileInfo[] get_deepest_fis(DirectoryInfo di) {
+			FileInfo[] fis=null;
+			DirectoryInfo[] dis=di.GetDirectories();
+			if (dis==null||dis.Length==0) {
+				fis=di.GetFiles();
+			}
+			else {
+				fis=get_deepest_fis(dis[0]);
+			}
+			return fis;
+		}
 		void GoButtonClick(object sender, EventArgs e)
 		{
 			if (this.destinationComboBox.Text!="") {
+				
+				//fix errant retroactive backup folders from old versions:
+				string sDestPrefix=Common.LocalFolderThenSlash(DestinationDriveRootDirectory_FullName_OrSlashIfRootDir)+DestSubfolderRelNameThenSlash;
+				DirectoryInfo dest_root_di=new DirectoryInfo(sDestPrefix);
+				DirectoryInfo[] dis=dest_root_di.GetDirectories();
+				//NOTE: last letter in each bad_name_examples is drive letter!
+				string[] bad_name_examples={"2017M4d9H251SSC","2017M12d12H251SSC","2017M12d9H251SSC","2017M9d12H251SSC",
+											"2017M4d9H1251SSC","2017M12d12H1251SSC","2017M12d9H1251SSC","2017M9d12H1251SSC"};
+				int check_bad_retro_count=0;
+				foreach (DirectoryInfo di in dis) {
+					check_bad_retro_count+=1;
+					// 2017M4d9H251SSC should be 2017/04/09/0251?? where ?? is second
+					bool bad_enable=false;
+					string source_drive_letter=null;
+					for (int i=0; i<bad_name_examples.Length; i++) {
+						if (di.Name.Length==bad_name_examples[i].Length) {
+							int bad_M=bad_name_examples[i].IndexOf("M");
+							int bad_d=bad_name_examples[i].IndexOf("d");
+							int bad_H=bad_name_examples[i].IndexOf("H");
+							if ( di.Name.Substring(0,di.Name.Length-1).EndsWith("SS")
+								&& di.Name[bad_M]==bad_name_examples[i][bad_M]
+							    && di.Name[bad_d]==bad_name_examples[i][bad_d]
+							    && di.Name[bad_H]==bad_name_examples[i][bad_H]
+							   ) {
+								source_drive_letter=di.Name.Substring(di.Name.Length-1);
+								bad_enable=true;
+								break;
+							}
+						}
+					}
+					if (bad_enable) {
+						Console.Error.WriteLine("bad_retroactive_folder: "+di.FullName);
+						FileInfo[] fis=get_deepest_fis(di);
+						if (fis!=null) {  // not empty folder
+							foreach (FileInfo fi in fis) {
+								string dated_path=get_retroactive_timed_folder_partialpath_from_UTC(fi.LastWriteTimeUtc);
+								while (dated_path.EndsWith(Common.sDirSep)) dated_path=dated_path.Substring(0, dated_path.Length-1);
+								while (dated_path.StartsWith(Common.sDirSep)) dated_path=dated_path.Substring(1);
+								dated_path+=Common.sDirSep+source_drive_letter;
+								string new_dir_path=fi.Directory.FullName.Replace(di.Name, dated_path);
+								new_dir_path.Replace(Common.sDirSep+Common.sDirSep, Common.sDirSep);
+								if (new_dir_path.EndsWith(Common.sDirSep)) new_dir_path=new_dir_path.Substring(0, new_dir_path.Length-1);
+								string new_path=Path.Combine(new_dir_path, fi.Name);
+								Console.Error.WriteLine("move_bad_retroactive_from:"+fi.FullName);
+								Console.Error.WriteLine("move_bad_retroactive_to:"+new_path);
+								try {
+									Directory.CreateDirectory(new_dir_path);
+									fi.Attributes=FileAttributes.Normal;
+									fi.MoveTo(new_path);
+								}
+								catch (Exception exn) {
+									Console.Error.WriteLine("Could not finish correcting bad retroactive path: "+exn.ToString());
+								}
+							}
+						}
+						try {
+							Console.Error.WriteLine("move_bad_empty_retroactive_path:"+di.FullName);
+							di.Delete(true);
+						}
+						catch (Exception exn) {
+							Console.Error.WriteLine("Could not finish removing bad empty retroactive path: "+exn.ToString());
+						}
+					}
+					else {
+						Console.Error.WriteLine("ok_retroactive_folder: "+di.FullName);
+					}
+				}
+				if (check_bad_retro_count==0) {
+					Console.Error.WriteLine("retroactive_folder_check_failed_or_none_to_check_for: "+dest_root_di.FullName);
+				}
 				is_first_overlimit=true;
 				//if (destinationComboBox.SelectedIndex>=0) {
 				int thisRootNumber=Common.GetPseudoRootIndex_ByCustomInt(destinationComboBox.SelectedIndex);
@@ -2371,7 +2479,7 @@ namespace ExpertMultimedia {
 				//if (!SetDestFolder(destinationComboBox.Text)) bGood=false; //instead of this, path is already assured to be good since it is in the list, and ulByteCountDestTotalSize & ulByteCountDestAvailableFreeSpace are set by the IndexedChanged event handler
 				
 				if (bDeleteFilesNotOnSource_BeforeBackup) {
-					string sDestPrefix=Common.LocalFolderThenSlash(DestinationDriveRootDirectory_FullName_OrSlashIfRootDir)+DestSubfolderRelNameThenSlash;
+					//string sDestPrefix=Common.LocalFolderThenSlash(DestinationDriveRootDirectory_FullName_OrSlashIfRootDir)+DestSubfolderRelNameThenSlash;
 					if (sDestPrefix.Length>1&&sDestPrefix.EndsWith(Common.sDirSep)) sDestPrefix=sDestPrefix.Substring(0,sDestPrefix.Length-1);
 					//TODO: DeleteIfNotOnSource_Recursively(sDestPrefix);
 					//TODO: MessageBox.Show("Reconstructed source \""+sReturn+"\" "+((Directory.Exists(sReturn))?"exists":"does not exist"));
