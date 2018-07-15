@@ -110,6 +110,7 @@ namespace ExpertMultimedia {
 		private static ArrayList alSkippedDueToException=new ArrayList(); //formerly alSkipped
 		//private static ArrayList CurrentFolder_alSkippedDueToException=new ArrayList();
 		private static ArrayList alCopyError=new ArrayList();
+		private static string sShowError="";
 		private static int iNonCommentLines=0;
 		private static string sCP="";//fixed later
 		private static string sMkdir="";//fixed later
@@ -524,6 +525,7 @@ namespace ExpertMultimedia {
 			
 		}
 		bool RunScript(string sFileX) {
+			sShowError="";
 			scriptFileNameStack.Push(sFileX);
 			if (alSkippedDueToException!=null||alCopyError!=null) { //TODO: recheck logic.  This used to be done below (see identical commented lines)
 				if (alSkippedDueToException.Count!=0||alCopyError.Count>0) {
@@ -605,6 +607,7 @@ namespace ExpertMultimedia {
 					bCopyErrorLastRun=true;
 					if (alCopyError==null) alCopyError=new ArrayList();
 					alCopyError.Add(msg);
+					sShowError=msg;
 				}
 				else {
 					//backup even if there were any commands in script even if there were copy errors,
@@ -2656,10 +2659,13 @@ namespace ExpertMultimedia {
 						WriteLastRunLog();
 						FileInfo fiSaved=new FileInfo(LastRunLog_FullName);
 						string partialMsg="";
-						if (alCopyError.Count>0) {
-							partialMsg+=" with "+alCopyError.Count.ToString()+" error(s) starting with \n\"" +
-								(string)alCopyError[0]+"\"";
+						if (sShowError.Length>0) {
+							partialMsg=" with error: "+sShowError;
 						}
+						//if (alCopyError.Count>0) {
+						//	partialMsg+=" with "+alCopyError.Count.ToString()+" error(s) starting with \n\"" +
+						//		(string)alCopyError[0]+"\"";
+						//}
 						MessageBox.Show("Finished Backup" + partialMsg + ".\n\nLog ("+iMessages.ToString()+" message(s)) saved to \""+fiSaved.FullName+"\"",sMyName);//DialogResult dlg=MessageBox.Show(sFileList+"\n\n  Do you wish to to review the list (press cancel to exit)?","Result", MessageBoxButtons.OKCancel);
 						//if (dlg==DialogResult.OK) bUserSaysStayOpen=true;
 						//else
