@@ -110,6 +110,7 @@ namespace ExpertMultimedia {
 		private static ArrayList alSkippedDueToException=new ArrayList(); //formerly alSkipped
 		//private static ArrayList CurrentFolder_alSkippedDueToException=new ArrayList();
 		private static ArrayList alCopyError=new ArrayList();
+		private static int iNonCommentLines=0;
 		private static string sCP="";//fixed later
 		private static string sMkdir="";//fixed later
 		//private const int StatusOK=0;
@@ -531,6 +532,8 @@ namespace ExpertMultimedia {
 				alSkippedDueToException.Clear();
 				alCopyError.Clear();
 			}
+			
+			iNonCommentLines=0;
 			int iFilesProcessedPrev=iFilesProcessed;
 			int iFilesProcessed_ThisScript=0;
 			bool bGood=false;
@@ -558,6 +561,7 @@ namespace ExpertMultimedia {
 						break;
 					}
 					if (sLine.StartsWith("#")) Console.Error.WriteLine("\t"+sLine);
+					else iNonCommentLines++;
 					RunScriptLine(sLine);
 					iLine++;
 					if (bDiskFullLastRun||bUserCancelledLastRun) break; //do NOT stop if Copy Error only
@@ -570,6 +574,45 @@ namespace ExpertMultimedia {
 						if (bUserCancelledLastRun) break;
 						Output("(could not list) "+sSkippedNow);
 					}
+				}
+				if (streamIn!=null) {
+					streamIn.Close();
+					streamIn=null;
+				}
+				string script_name="missing script";
+				FileInfo fiScript=new FileInfo(sFileX);
+				if (fiScript.Exists) {
+					script_name=fiScript.Name;
+				}
+				string lastGoodScriptName=Path.GetFileNameWithoutExtension(sFileX)+"-LastGood"+Path.GetExtension(sFileX);
+				string lastGoodScriptPath=Path.Combine(fiScript.Directory.FullName, lastGoodScriptName);
+				if (iNonCommentLines<1) {
+					Output("");
+					string msg="ERROR: There were no commands in "+script_name+".";
+					//NOTE: GetExtension's return DOES include dot if there is any
+					
+					string badScriptPath=Path.Combine(fiScript.Directory.FullName, Path.GetFileNameWithoutExtension(sFileX)+"-LastBad"+Path.GetExtension(sFileX));
+					if (File.Exists(lastGoodScriptPath)) {
+						if (File.Exists(badScriptPath)) File.Delete(badScriptPath);
+						File.Move(sFileX, badScriptPath);
+						File.Copy(lastGoodScriptPath, sFileX);
+						msg+=" (last good script was loaded, try again)";
+					}
+					else {
+						msg+=" and there was no \n\""+lastGoodScriptName+"\" file";
+					}
+					Output(msg,true);
+					bCopyErrorLastRun=true;
+					if (alCopyError==null) alCopyError=new ArrayList();
+					alCopyError.Add(msg);
+				}
+				else {
+					//backup even if there were any commands in script even if there were copy errors,
+					//since script is apparently intact as user intended even if wrong
+					//(copy errors will happen even in the case of permission issues or full dest anyway
+					//so they do not normally indicate that the script is bad unless if case above is true)
+					if (File.Exists(lastGoodScriptPath)) File.Delete(lastGoodScriptPath);
+					File.Copy(sFileX, lastGoodScriptPath);
 				}
 				if (alCopyError.Count>0) {
 					Output("");
@@ -608,6 +651,7 @@ namespace ExpertMultimedia {
 				}
 				Common.sParticiple = "running " + Common.SafeString(sFileX,true) + ":";
 				if (bTestOnly) MessageBox.Show("Error "+Common.sParticiple+"\n"+exn.ToString(),"Backup GoNow");
+				
 				Common.ShowExn(exn,Common.sParticiple,"RunScript");
 				bGood=false;
 			}
@@ -2611,7 +2655,12 @@ namespace ExpertMultimedia {
 						
 						WriteLastRunLog();
 						FileInfo fiSaved=new FileInfo(LastRunLog_FullName);
-						MessageBox.Show("Finished Backup.\n\nLog ("+iMessages.ToString()+" message(s)) saved to \""+fiSaved.FullName+"\"",sMyName);//DialogResult dlg=MessageBox.Show(sFileList+"\n\n  Do you wish to to review the list (press cancel to exit)?","Result", MessageBoxButtons.OKCancel);
+						string partialMsg="";
+						if (alCopyError.Count>0) {
+							partialMsg+=" with "+alCopyError.Count.ToString()+" error(s) starting with \n\"" +
+								(string)alCopyError[0]+"\"";
+						}
+						MessageBox.Show("Finished Backup" + partialMsg + ".\n\nLog ("+iMessages.ToString()+" message(s)) saved to \""+fiSaved.FullName+"\"",sMyName);//DialogResult dlg=MessageBox.Show(sFileList+"\n\n  Do you wish to to review the list (press cancel to exit)?","Result", MessageBoxButtons.OKCancel);
 						//if (dlg==DialogResult.OK) bUserSaysStayOpen=true;
 						//else
 							bUserSaysStayOpen=false;
@@ -2622,7 +2671,7 @@ namespace ExpertMultimedia {
 						if (iMessages<=0) MessageBox.Show("Finished Backup.");//\n\nLog saved to \""+fiSaved.FullName+"\"",sMyName);
 						else MessageBox.Show("Finished Backup.\n\nLog ("+iMessages.ToString()+" message(s)) saved to \""+fiSaved.FullName+"\"",sMyName);
 					}
-					if ((bCopyErrorLastRun&&!bUserSaysStayOpen) || !bTestOnly && !bAlwaysStayOpen)
+					if ((!bCopyErrorLastRun&&!bUserSaysStayOpen) && !bTestOnly && !bAlwaysStayOpen)
 						Application.Exit(); // && !bCopyErrorLastRun
 				}//end else bGood
 				menuitemEditMain.Enabled=true;
