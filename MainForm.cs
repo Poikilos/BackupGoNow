@@ -2352,6 +2352,7 @@ namespace ExpertMultimedia {
 				backupStream.WriteLine(@"Exclude:Cache");
 				backupStream.WriteLine(@"Exclude:Temporary Internet Files");
 				backupStream.WriteLine(@"Exclude:Media Cache");
+				backupStream.WriteLine(@"Exclude:blob_storage"); //%LOCALAPPDATA%\Google\Chrome\User Data\Default\blob_storage
 				backupStream.WriteLine(@"Exclude:Thumbs.db");
 				backupStream.WriteLine(@"Exclude:.git");
 				backupStream.WriteLine(@"Exclude:__pycache__");
