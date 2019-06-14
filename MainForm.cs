@@ -26,7 +26,7 @@ namespace ExpertMultimedia {
 	/// Description of MainForm.
 	/// </summary>
 	public partial class MainForm : Form {
-		public static string sMyNameAndVersion="Backup GoNow 2018-01-03";
+		public static string sMyNameAndVersion="Backup GoNow (git)";
 		public static string sMyName="Backup GoNow";
 		//ArrayList alPseudoRootsNow=null;
 		//ArrayList alSelectableDrives=null;
