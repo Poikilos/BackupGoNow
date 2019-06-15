@@ -64,6 +64,8 @@ namespace ExpertMultimedia
 			this.goFlowLayoutPanel = new System.Windows.Forms.FlowLayoutPanel();
 			this.goButton = new System.Windows.Forms.Button();
 			this.cancelButton = new System.Windows.Forms.Button();
+			this.flowLayoutPanel2 = new System.Windows.Forms.FlowLayoutPanel();
+			this.recreateFullPathCheckBox = new System.Windows.Forms.CheckBox();
 			this.menuStrip1 = new System.Windows.Forms.MenuStrip();
 			this.settingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
 			this.menuitemEditMain = new System.Windows.Forms.ToolStripMenuItem();
@@ -83,6 +85,7 @@ namespace ExpertMultimedia
 			this.flowLayoutPanel1.SuspendLayout();
 			this.destinationTableLayoutPanel.SuspendLayout();
 			this.goFlowLayoutPanel.SuspendLayout();
+			this.flowLayoutPanel2.SuspendLayout();
 			this.menuStrip1.SuspendLayout();
 			this.SuspendLayout();
 			// 
@@ -106,7 +109,7 @@ namespace ExpertMultimedia
 			this.lbOut.Location = new System.Drawing.Point(4, 4);
 			this.lbOut.Margin = new System.Windows.Forms.Padding(4);
 			this.lbOut.Name = "lbOut";
-			this.lbOut.Size = new System.Drawing.Size(862, 213);
+			this.lbOut.Size = new System.Drawing.Size(862, 194);
 			this.lbOut.TabIndex = 2;
 			this.lbOut.MouseUp += new System.Windows.Forms.MouseEventHandler(this.LbOutMouseUp);
 			this.lbOut.MouseEnter += new System.EventHandler(this.LbOutMouseEnter);
@@ -180,6 +183,7 @@ namespace ExpertMultimedia
 			this.mainTableLayoutPanel.Controls.Add(this.flowLayoutPanel1, 0, 2);
 			this.mainTableLayoutPanel.Controls.Add(this.destinationTableLayoutPanel, 0, 3);
 			this.mainTableLayoutPanel.Controls.Add(this.goFlowLayoutPanel, 0, 5);
+			this.mainTableLayoutPanel.Controls.Add(this.flowLayoutPanel2, 0, 4);
 			this.mainTableLayoutPanel.Dock = System.Windows.Forms.DockStyle.Fill;
 			this.mainTableLayoutPanel.Location = new System.Drawing.Point(0, 29);
 			this.mainTableLayoutPanel.Name = "mainTableLayoutPanel";
@@ -188,7 +192,7 @@ namespace ExpertMultimedia
 			this.mainTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
 			this.mainTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
 			this.mainTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
-			this.mainTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
+			this.mainTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
 			this.mainTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
 			this.mainTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
 			this.mainTableLayoutPanel.Size = new System.Drawing.Size(886, 496);
@@ -204,7 +208,7 @@ namespace ExpertMultimedia
 			this.mainTabControl.Margin = new System.Windows.Forms.Padding(4);
 			this.mainTabControl.Name = "mainTabControl";
 			this.mainTabControl.SelectedIndex = 0;
-			this.mainTabControl.Size = new System.Drawing.Size(878, 267);
+			this.mainTabControl.Size = new System.Drawing.Size(878, 252);
 			this.mainTabControl.TabIndex = 15;
 			// 
 			// optionsTabPage
@@ -214,7 +218,7 @@ namespace ExpertMultimedia
 			this.optionsTabPage.Margin = new System.Windows.Forms.Padding(4);
 			this.optionsTabPage.Name = "optionsTabPage";
 			this.optionsTabPage.Padding = new System.Windows.Forms.Padding(4);
-			this.optionsTabPage.Size = new System.Drawing.Size(870, 235);
+			this.optionsTabPage.Size = new System.Drawing.Size(870, 220);
 			this.optionsTabPage.TabIndex = 0;
 			this.optionsTabPage.Text = "Options";
 			this.optionsTabPage.UseVisualStyleBackColor = true;
@@ -231,7 +235,7 @@ namespace ExpertMultimedia
 			this.optionsOuterTableLayoutPanel.RowCount = 2;
 			this.optionsOuterTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
 			this.optionsOuterTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-			this.optionsOuterTableLayoutPanel.Size = new System.Drawing.Size(862, 227);
+			this.optionsOuterTableLayoutPanel.Size = new System.Drawing.Size(862, 212);
 			this.optionsOuterTableLayoutPanel.TabIndex = 1;
 			// 
 			// optionsHelpLabel
@@ -258,7 +262,7 @@ namespace ExpertMultimedia
 			this.optionsTableLayoutPanel.RowCount = 2;
 			this.optionsTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 29F));
 			this.optionsTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-			this.optionsTableLayoutPanel.Size = new System.Drawing.Size(854, 200);
+			this.optionsTableLayoutPanel.Size = new System.Drawing.Size(854, 185);
 			this.optionsTableLayoutPanel.TabIndex = 0;
 			// 
 			// logTabPage
@@ -268,7 +272,7 @@ namespace ExpertMultimedia
 			this.logTabPage.Margin = new System.Windows.Forms.Padding(4);
 			this.logTabPage.Name = "logTabPage";
 			this.logTabPage.Padding = new System.Windows.Forms.Padding(4);
-			this.logTabPage.Size = new System.Drawing.Size(870, 235);
+			this.logTabPage.Size = new System.Drawing.Size(870, 220);
 			this.logTabPage.TabIndex = 1;
 			this.logTabPage.Text = "Log";
 			this.logTabPage.UseVisualStyleBackColor = true;
@@ -279,7 +283,7 @@ namespace ExpertMultimedia
 			this.flowLayoutPanel1.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
 			this.flowLayoutPanel1.Controls.Add(this.addFolderButton);
 			this.flowLayoutPanel1.Controls.Add(this.addFileButton);
-			this.flowLayoutPanel1.Location = new System.Drawing.Point(4, 298);
+			this.flowLayoutPanel1.Location = new System.Drawing.Point(4, 283);
 			this.flowLayoutPanel1.Margin = new System.Windows.Forms.Padding(4);
 			this.flowLayoutPanel1.Name = "flowLayoutPanel1";
 			this.flowLayoutPanel1.Size = new System.Drawing.Size(216, 42);
@@ -318,7 +322,7 @@ namespace ExpertMultimedia
 			this.destinationTableLayoutPanel.Controls.Add(this.lblDest, 0, 0);
 			this.destinationTableLayoutPanel.Controls.Add(this.driveLabel, 2, 0);
 			this.destinationTableLayoutPanel.Dock = System.Windows.Forms.DockStyle.Fill;
-			this.destinationTableLayoutPanel.Location = new System.Drawing.Point(3, 347);
+			this.destinationTableLayoutPanel.Location = new System.Drawing.Point(3, 332);
 			this.destinationTableLayoutPanel.Name = "destinationTableLayoutPanel";
 			this.destinationTableLayoutPanel.RowCount = 1;
 			this.destinationTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
@@ -373,6 +377,25 @@ namespace ExpertMultimedia
 			this.cancelButton.Text = "Cancel";
 			this.cancelButton.UseVisualStyleBackColor = true;
 			this.cancelButton.Click += new System.EventHandler(this.CancelButtonClick);
+			// 
+			// flowLayoutPanel2
+			// 
+			this.flowLayoutPanel2.AutoSize = true;
+			this.flowLayoutPanel2.Controls.Add(this.recreateFullPathCheckBox);
+			this.flowLayoutPanel2.Location = new System.Drawing.Point(3, 370);
+			this.flowLayoutPanel2.Name = "flowLayoutPanel2";
+			this.flowLayoutPanel2.Size = new System.Drawing.Size(223, 29);
+			this.flowLayoutPanel2.TabIndex = 18;
+			// 
+			// recreateFullPathCheckBox
+			// 
+			this.recreateFullPathCheckBox.AutoSize = true;
+			this.recreateFullPathCheckBox.Location = new System.Drawing.Point(3, 3);
+			this.recreateFullPathCheckBox.Name = "recreateFullPathCheckBox";
+			this.recreateFullPathCheckBox.Size = new System.Drawing.Size(217, 23);
+			this.recreateFullPathCheckBox.TabIndex = 0;
+			this.recreateFullPathCheckBox.Text = "Recreate Full Path on Backup";
+			this.recreateFullPathCheckBox.UseVisualStyleBackColor = true;
 			// 
 			// menuStrip1
 			// 
@@ -478,11 +501,15 @@ namespace ExpertMultimedia
 			this.destinationTableLayoutPanel.PerformLayout();
 			this.goFlowLayoutPanel.ResumeLayout(false);
 			this.goFlowLayoutPanel.PerformLayout();
+			this.flowLayoutPanel2.ResumeLayout(false);
+			this.flowLayoutPanel2.PerformLayout();
 			this.menuStrip1.ResumeLayout(false);
 			this.menuStrip1.PerformLayout();
 			this.ResumeLayout(false);
 			this.PerformLayout();
 		}
+		private System.Windows.Forms.CheckBox recreateFullPathCheckBox;
+		private System.Windows.Forms.FlowLayoutPanel flowLayoutPanel2;
 		private System.Windows.Forms.OpenFileDialog openFileDialog1;
 		private System.Windows.Forms.Button addFileButton;
 		private System.Windows.Forms.ComboBox destinationComboBox;

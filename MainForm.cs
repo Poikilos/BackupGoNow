@@ -324,30 +324,40 @@ namespace ExpertMultimedia {
 			if (errStream!=null) errStream.Close();
 		}
 		public static bool ToBool(string sNow) {
-			return sNow.ToLower()=="yes"||sNow=="1"||sNow.ToLower()=="true";
+			return sNow.ToLower()=="yes"||sNow=="1"||sNow.ToLower()=="true"||sNow.ToLower()=="on";
 		}
-		void BackupFolder(DirectoryInfo diBase) {
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="diBase"></param>
+		/// <param name="enableRecreateFullPath"></param>
+		/// <param name="baseSourcePath">If enableRecreateFullPath is false, baseSourcePath will be excluded from the path on the backup</param>
+		/// <returns></returns>
+		string BackupFolder(DirectoryInfo diBase, bool enableRecreateFullPath, string baseSourcePath) {
+			string result = null;
 			iDepth++;
 			DirectoryInfo[] diarrSrc=null;
 			try {
 				diarrSrc=diBase.GetDirectories();
-				//if (bTestOnly) Output("Getting ready to copy "+(diBase.Size/1024/1024).ToString()+"MB...");			
+				// if (bTestOnly) Output("Getting ready to copy "+(diBase.Size/1024/1024).ToString()+"MB...");			
 				foreach (DirectoryInfo diNow in diarrSrc) {
 					if (bUserCancelledLastRun) break;
-					if (!Common.IsExcludedFolder(diNow)) { //TODO: if (!Common.IsExcludedFolder(diNow, true, true, false)) {
-						ReconstructPathOnBackup(diNow.FullName);
+					if (!Common.IsExcludedFolder(diNow)) {  // TODO: if (!Common.IsExcludedFolder(diNow, true, true, false)) {
+						ReconstructPathOnBackup(diNow.FullName, enableRecreateFullPath, baseSourcePath);
 						if (!bUserCancelledLastRun&&!bDiskFullLastRun
-							&&!Common.IsExcludedFolder(diNow))//TODO: &&!Common.IsExcludedFolder(diNow, true, true, false)) //&&flisterNow.UseFolder(diNow))
-							BackupFolder(diNow);
+						    	&&!Common.IsExcludedFolder(diNow)) { // TODO: &&!Common.IsExcludedFolder(diNow, true, true, false))  //&&flisterNow.UseFolder(diNow))
+							string sNewPath = BackupFolder(diNow, enableRecreateFullPath, baseSourcePath);
+							// ignore return--not needed for feedback (during recursion)
+						}
 					}
 				}
 			}
-			catch {} //no subfolders
+			catch {}  // no subfolders
 			
 			FileInfo[] fiarrSrc=null;
 			
-			//bool[] barrUsedSrcFile=null;
-			//ArrayList alActuallyUsedSrcFiles=null;//new ArrayList();
+			// bool[] barrUsedSrcFile=null;
+			// ArrayList alActuallyUsedSrcFiles=null;//new ArrayList();
 			int iSrcNow=0;
 			try {
 				bool bSourceListingWasCancelled=false;
@@ -364,14 +374,15 @@ namespace ExpertMultimedia {
 					if (!Common.IsExcludedFile(fiNow)) {//if (!Common.IsExcludedFile(diBase,fiNow)) {//if (flisterNow.UseFile(diBase,fiNow)) {
 						//barrUsedSrcFile[iSrcNow]=true;
 						//lbOut.Items.Add(fiNow.FullName+" not excluded by "+Common.MasksToCSV());//debug only
-						BackupFile(fiNow.FullName,true);
+						BackupFile(fiNow.FullName, enableRecreateFullPath, baseSourcePath, null);
 						if (bTestOnly) Output("  ("+fiNow.FullName+")",true);
 						//if (bDeleteFilesNotOnSource_AfterCopyingEachFolder) alActuallyUsedSrcFiles.Add(fiNow.Name);
 						//iSrcNow++;
 					}
 					if (bUserCancelledLastRun) break;
 				}//end foreach file
-				DirectoryInfo diTarget=new DirectoryInfo(ReconstructedBackupPath(diBase.FullName,null));
+				DirectoryInfo diTarget=new DirectoryInfo(ReconstructedBackupPath(diBase.FullName,enableRecreateFullPath, baseSourcePath, null));
+				result = diTarget.FullName;
 				if (bDeleteFilesNotOnSource_AfterCopyingEachFolder&&!bSourceListingWasCancelled) {
 					//DirectoryInfo diTarget=new DirectoryInfo(ReconstructedBackupPath(diBase.FullName));
 					//bool bFoundOnSource=false;
@@ -391,7 +402,7 @@ namespace ExpertMultimedia {
 						if (found_source_DI==null) {
 							string DeletedFolder_FullName=diDest.FullName;
 							//string retroactive_timed_name=diDest.LastWriteTimeUtc.ToString("yyyyMMddHHmmss", System.Globalization.CultureInfo.GetCultureInfo("en-US"));
-							string diDest_Retroactive_Parent_FullName = ReconstructedBackupPath(ReconstructedSourcePath(diDest.Parent.FullName),get_retroactive_timed_folder_partialpath_from_UTC(diDest.LastWriteTimeUtc));
+							string diDest_Retroactive_Parent_FullName = ReconstructedBackupPath(ReconstructedSourcePath(diDest.Parent.FullName),enableRecreateFullPath, baseSourcePath, get_retroactive_timed_folder_partialpath_from_UTC(diDest.LastWriteTimeUtc));
 							string diDest_Retroactive_FullName = Path.Combine(diDest_Retroactive_Parent_FullName, diDest.Name);
 							MainForm.Output("Removing deleted/moved folder to retroactive folder: "+diDest_Retroactive_FullName,true);
 							Application.DoEvents();
@@ -461,7 +472,7 @@ namespace ExpertMultimedia {
 							fiDest.Attributes=FileAttributes.Normal;//fiDest.Attributes^= FileAttributes.ReadOnly;
 							string DeletedFile_FullName=fiDest.FullName;
 							//string retroactive_timed_name=fiDest.LastWriteTimeUtc.ToString("yyyy"+Common.sDirSep+"MM"+Common.sDirSep+"dd"+Common.sDirSep+"HHmmss", System.Globalization.CultureInfo.GetCultureInfo("en-US"));
-							string fiDest_Parent_FullName=ReconstructedBackupPath(ReconstructedSourcePath(fiDest.Directory.FullName), get_retroactive_timed_folder_partialpath_from_UTC(fiDest.LastWriteTimeUtc));
+							string fiDest_Parent_FullName=ReconstructedBackupPath(ReconstructedSourcePath(fiDest.Directory.FullName), enableRecreateFullPath, baseSourcePath, get_retroactive_timed_folder_partialpath_from_UTC(fiDest.LastWriteTimeUtc));
 							string fiDest_Retroactive_FullName = Path.Combine( fiDest_Parent_FullName, fiDest.Name );
 							try {
 								Directory.CreateDirectory(fiDest_Parent_FullName);
@@ -508,6 +519,7 @@ namespace ExpertMultimedia {
 				Console.Error.WriteLine("FAIL (BackupFolder recursively)");
 			} //no files
 			iDepth--;
+			return result;
 		}//end BackupFolder recursively
 		string get_retroactive_timed_folder_partialpath_from_UTC(DateTime thisDT_MUST_BE_UTC) {
 			//NOTE: must use DOUBLE dirsep, since escape sequences are allowed in datetime.ToString
@@ -529,7 +541,7 @@ namespace ExpertMultimedia {
 				+ Common.sDirSep;
 			
 		}
-		bool RunScript(string sFileX) {
+		bool RunScript(string sFileX, bool enableRecreateFullPath) {
 			sShowError="";
 			scriptFileNameStack.Push(sFileX);
 			if (alSkippedDueToException!=null||alCopyError!=null) { //TODO: recheck logic.  This used to be done below (see identical commented lines)
@@ -569,7 +581,7 @@ namespace ExpertMultimedia {
 					}
 					if (sLine.StartsWith("#")) Console.Error.WriteLine("\t"+sLine);
 					else iNonCommentLines++;
-					RunScriptLine(sLine, sFileX, iLine+1);
+					RunScriptLine(sLine, enableRecreateFullPath, sFileX, iLine+1);
 					iLine++;
 					if (bDiskFullLastRun||bUserCancelledLastRun) break; //do NOT stop if Copy Error only
 				}//end while lines in script
@@ -854,22 +866,35 @@ namespace ExpertMultimedia {
 			}
 			return sReturn;
 		}//end ReconstructedSourcePath
+
 		private static bool bShowReconstructedBackupPathError=true;
 		/// <summary>
 		/// 
 		/// </summary>
 		/// <param name="sSrcPath"></param>
+		/// <param name="enableRecreateFullPath"></param>
+		/// <param name="baseSourcePath">If enableRecreateFullPath is false, baseSourcePath will be excluded from the path on the backup</param>
 		/// <param name="retroactive_string"></param>
 		/// <returns>The directory for backup, including DestSubFolder, retroactive_string, and all parts of source path (including drive letter if any)</returns>
-		public string ReconstructedBackupPath(string sSrcPath, string retroactive_string) {
-			//Output("Reconstruction sSrcPath(as received): "+sSrcPath);//debug only
-			//Output("Reconstruction DestinationDriveRootDirectory_FullName_OrSlashIfRootDir(as received): "+DestinationDriveRootDirectory_FullName_OrSlashIfRootDir);//debug only
-			//NOTE: Common.LocalFolderThenSlash just makes sure it ends with a slash and uses Common.sDirSep
-			string sReturn=null;//Common.LocalFolderThenSlash(DestinationDriveRootDirectory_FullName_OrSlashIfRootDir)+((DestSubfolderRelNameThenSlash!=null)?DestSubfolderRelNameThenSlash:"");
-			sReturn=DestinationDriveRootDirectory_FullName_OrSlashIfRootDir;
+		public string ReconstructedBackupPath(string sSrcPath, bool enableRecreateFullPath, string baseSourcePath, string retroactive_string) {
+			// Output("Reconstruction sSrcPath(as received): "+sSrcPath);  // debug only
+			// Output("Reconstruction DestinationDriveRootDirectory_FullName_OrSlashIfRootDir(as received): "+DestinationDriveRootDirectory_FullName_OrSlashIfRootDir);  // debug only
+			// NOTE: Common.LocalFolderThenSlash just makes sure it ends with a slash and uses Common.sDirSep
+			string sReturn = null;  // Common.LocalFolderThenSlash(DestinationDriveRootDirectory_FullName_OrSlashIfRootDir)+((DestSubfolderRelNameThenSlash!=null)?DestSubfolderRelNameThenSlash:"");
+			sReturn = DestinationDriveRootDirectory_FullName_OrSlashIfRootDir;
 			if (DestSubfolderRelNameThenSlash!=null) {
-				sReturn=Path.Combine(DestinationDriveRootDirectory_FullName_OrSlashIfRootDir,DestSubfolderRelNameThenSlash);
+				sReturn=Path.Combine(DestinationDriveRootDirectory_FullName_OrSlashIfRootDir, DestSubfolderRelNameThenSlash);
 			}
+			string removePartialPath = null;
+			DirectoryInfo baseDI = new DirectoryInfo(baseSourcePath);
+			if (baseDI.Exists) {
+				removePartialPath = baseDI.Parent.FullName;  // only create the directory added (like rsync source without trailing slash)
+			}
+			else {
+				FileInfo baseFI = new FileInfo(baseSourcePath);
+				if (baseFI.Exists) removePartialPath = baseFI.Directory.FullName;  // create no extra directory, just use backup root + DestSubRelPathThenSlash if non-null
+			}
+			if (removePartialPath==null) throw new ApplicationException("removePartialPath is null (baseSourcePath must not exist)");
 			if (retroactive_string!=null) {
 				if (retroactive_string.StartsWith(char.ToString(Path.DirectorySeparatorChar))) {
 					retroactive_string=retroactive_string.Substring(1);
@@ -878,6 +903,13 @@ namespace ExpertMultimedia {
 			}
 			string sDestAppend=sSrcPath;
 			int iStart=0;
+
+			if (!enableRecreateFullPath) {
+				if (sSrcPath.StartsWith(removePartialPath)) {  // NOTE: case sensitive
+					iStart = removePartialPath.Length;
+				}
+			}
+
 			if (sDestAppend[iStart]=='/') {
 				while (iStart<sDestAppend.Length&&sDestAppend[iStart]=='/') {
 					iStart++;
@@ -910,22 +942,17 @@ namespace ExpertMultimedia {
 			Console.Error.WriteLine("ReconstructedBackupPath: {sReturn:'"+sReturn+"', sSrcPath: '"+sSrcPath+"', retroactive_string: "+((retroactive_string!=null)?("'"+retroactive_string+"'"):"null")+"}");
 			return sReturn;
 		}//end ReconstructedBackupPath
-		/*
-		public static ArrayList alAlreadyMD=new ArrayList();
-		public bool AlreadyMkdir(string Folder_FullName) {
-			bool bFound=false;
-			foreach (string FolderNow_FullName in alAlreadyMD) {
-				if (FolderNow_FullName==Folder_FullName) {
-					bFound=true;
-					break;
-				}
-			}
-			return bFound;
-		}
-		*/
-		public bool ReconstructPathOnBackup(string sSrcPath) {
+		
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="sSrcPath"></param>
+		/// <param name="enableRecreateFullPath"></param>
+		/// <param name="baseSourcePath">If enableRecreateFullPath is false, baseSourcePath will be excluded from the path on the backup</param>
+		/// <returns></returns>
+		public bool ReconstructPathOnBackup(string sSrcPath, bool enableRecreateFullPath, string baseSourcePath) {
 			bool bAlreadyExisted=false;
-			string BackupFolder_FullName=ReconstructedBackupPath(sSrcPath,null);
+			string BackupFolder_FullName=ReconstructedBackupPath(sSrcPath,enableRecreateFullPath, baseSourcePath, null);
 			bool bGood=true;
 			try {
 				bAlreadyExisted=Directory.Exists(BackupFolder_FullName);
@@ -957,11 +984,41 @@ namespace ExpertMultimedia {
 			}
 			else bGood=true;
 			return bGood;
+		}  // end ReconstructPathOnBackup
+		
+		/*
+		public static ArrayList alAlreadyMD=new ArrayList();
+		public bool AlreadyMkdir(string Folder_FullName) {
+			bool bFound=false;
+			foreach (string FolderNow_FullName in alAlreadyMD) {
+				if (FolderNow_FullName==Folder_FullName) {
+					bFound=true;
+					break;
+				}
+			}
+			return bFound;
 		}
-		public void BackupFile(string SrcFile_FullName, bool bUseReconstructedPath) {
-			BackupFile(SrcFile_FullName,bUseReconstructedPath,null);
-		}
-		public void BackupFile(string SrcFile_FullName, bool bUseReconstructedPath, FileInfo fiNow) {
+		*/
+		
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="SrcFile_FullName"></param>
+		/// <param name="enableRecreateFullPath"></param>
+		/// <param name="baseSourcePath">If enableRecreateFullPath is false, baseSourcePath will be excluded from the path on the backup</param>
+		//public string BackupFile(string SrcFile_FullName, bool enableRecreateFullPath, string baseSourcePath) {
+		//	return BackupFile(SrcFile_FullName, enableRecreateFullPath, null);
+		//}
+		
+		
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="SrcFile_FullName"></param>
+		/// <param name="enableRecreateFullPath"></param>
+		/// <param name="baseSourcePath">If enableRecreateFullPath is false, baseSourcePath will be excluded from the path on the backup</param>
+		/// <param name="fiNow"></param>
+		public string BackupFile(string SrcFile_FullName, bool enableRecreateFullPath, string baseSourcePath, FileInfo fiNow) {
 			string sLastAttemptedCommand="";
 			bStartedCopyingAnyFiles=true;
 			decimal dDone=-1.0m;
@@ -981,10 +1038,16 @@ namespace ExpertMultimedia {
 				if (fiNow.Exists) {
 					ulByteCountFolderNowDone+=(ulong)fiNow.Length;
 					ulByteCountTotalProcessed+=(ulong)fiNow.Length;
-					string BackupFolder_ThenSlash=bUseReconstructedPath?ReconstructedBackupPath(fiNow.Directory.FullName,null):Common.LocalFolderThenSlash(DestinationDriveRootDirectory_FullName_OrSlashIfRootDir);
-					if (bUseReconstructedPath) {
-						if (!Directory.Exists(ReconstructedBackupPath(fiNow.Directory.FullName,null))) ReconstructPathOnBackup(fiNow.Directory.FullName);
+					//string BackupFolder_ThenSlash=enableRecreateFullPath?ReconstructedBackupPath(fiNow.Directory.FullName, enableRecreateFullPath, baseSourcePath, null):Common.LocalFolderThenSlash(DestinationDriveRootDirectory_FullName_OrSlashIfRootDir);
+					string BackupFolder_ThenSlash=ReconstructedBackupPath(fiNow.Directory.FullName, enableRecreateFullPath, baseSourcePath, null);
+					//if (enableRecreateFullPath) {
+					
+					if (!Directory.Exists(ReconstructedBackupPath(fiNow.Directory.FullName, enableRecreateFullPath, baseSourcePath, null))) {
+						ReconstructPathOnBackup(fiNow.Directory.FullName, enableRecreateFullPath, baseSourcePath);
 					}
+					
+					//} // else store it directly to root (+DesSubFolderRelNameThenSlash if non-null) and assume root exists (required for manual operation)
+					
 					if (!BackupFolder_ThenSlash.EndsWith(Common.sDirSep)) BackupFolder_ThenSlash+=Common.sDirSep;
 					sDestFile=BackupFolder_ThenSlash+fiNow.Name;
 					FileInfo fiDest=new FileInfo(sDestFile);
@@ -1092,10 +1155,11 @@ namespace ExpertMultimedia {
 				string sMsg="";
 				if (alCopyError.Count>0) sMsg=(string)alCopyError[alCopyError.Count-1];
 				sMsg=ToOneLine(sMsg);
-				if (sMsg.Trim().Length>0 && !sMsg.Contains(successfully_redirected_string)) Common.ShowExn(exn,"backing up file ("+sMsg+")","BackupFile");
+				if (sMsg.Trim().Length>0 && !sMsg.Contains(successfully_redirected_string)) Common.ShowExn(exn, "backing up file ("+sMsg+")", "BackupFile");
 			}
 			iFilesProcessed++;
-		}//end BackupFile
+			return sDestFile;
+		}  // end BackupFile
 		public static bool bShowOutputException=true;
 		public static void Output(string sLineX) {
 			Output(sLineX,false);
@@ -1562,7 +1626,7 @@ namespace ExpertMultimedia {
 		/// <param name="sFile">For debugging purposes</param>
 		/// <param name="iLine">For debugging purposes</param>
 		/// <returns></returns>
-		public bool RunScriptLine(string sLine, string sFile, int lineNumber) {
+		public bool RunScriptLine(string sLine, bool enableRecreateFullPath, string sFile, int lineNumber) {
 			bool bForceBad=false;
 			bool bGood=false;
 			try {
@@ -1575,6 +1639,7 @@ namespace ExpertMultimedia {
 				if (iMarker>0) {  // && sLine.Length>(iMarker+1)) {
 					string sCommandLower=sLine.Substring(0,iMarker).ToLower().Trim();
 					string sValue=sLine.Substring(iMarker+1).Trim();
+					LogWriteLine("RunScriptLine("+((sLine!=null)?("\""+sLine+"\""):"null")+","+(enableRecreateFullPath?"true":"false")+","+((sFile!=null)?("\""+sFile+"\""):"null")+","+lineNumber.ToString());
 					sValue=ReplacedUserVars(sValue);
 					//%USERPROFILE%
 					if (sCommandLower.StartsWith("#")) {
@@ -1655,9 +1720,12 @@ namespace ExpertMultimedia {
 								if (fiSrc.Exists) {
 									ulByteCountTotal+=(ulong)fiSrc.Length;
 									//if (fiX.Exists())
-									ReconstructPathOnBackup(fiSrc.DirectoryName);
-									alFilesBackedUpManually.Add(Path.Combine(ReconstructedBackupPath(fiSrc.DirectoryName,null),fiSrc.Name));
-									if (!Common.IsExcludedFile(fiSrc)) BackupFile(sFileTheoretical,true);//if (!Common.IsExcludedFile(fiSrc.Directory,fiSrc)) BackupFile(sFileTheoretical,true);
+									ReconstructPathOnBackup(fiSrc.DirectoryName, enableRecreateFullPath, fiSrc.Directory.FullName);
+									//alFilesBackedUpManually.Add(Path.Combine(ReconstructedBackupPath(fiSrc.DirectoryName,null),fiSrc.Name));
+									if (!Common.IsExcludedFile(fiSrc)) {
+										string resultPath = BackupFile(sFileTheoretical, enableRecreateFullPath, fiSrc.FullName, null);  // if (!Common.IsExcludedFile(fiSrc.Directory,fiSrc)) BackupFile(sFileTheoretical,true);
+										alFilesBackedUpManually.Add(resultPath);
+									}
 								}
 								else {
 									bCopyErrorLastRun=true;
@@ -1688,12 +1756,12 @@ namespace ExpertMultimedia {
 								foreach (string sFolderTheoretical in alFoldersTheoretical) {
 									if (!sFolderTheoretical.Contains(Common.SlashWildSlash)) {
 										if (!Common.IsExcludedFolder(new DirectoryInfo(sFolderTheoretical))) { //if (!Common.IsExcludedFolder(new DirectoryInfo(sFolderTheoretical),true,true,false)) {
-											RunScriptLine("AddFolder:"+sFolderTheoretical, "<wildcard in "+((sFile!=null)?sFile:"null")+">", lineNumber);
+											RunScriptLine("AddFolder:"+sFolderTheoretical, enableRecreateFullPath, "<wildcard in "+((sFile!=null)?sFile:"null")+">", lineNumber);
 											iNonExcludable++;
 										}
 									}
 									else {
-										RunScriptLine("AddFolder:"+sFolderTheoretical, "<wildcard in "+((sFile!=null)?sFile:"null")+">", lineNumber);
+										RunScriptLine("AddFolder:"+sFolderTheoretical, enableRecreateFullPath, "<wildcard in "+((sFile!=null)?sFile:"null")+">", lineNumber);
 										iWildcardsAdded++;
 									}
 								}
@@ -1717,7 +1785,7 @@ namespace ExpertMultimedia {
 							DirectoryInfo diRoot=new DirectoryInfo(sSearchRoot);
 							iDepth=-1;
 							//bBusyCopying=true;
-							if (diRoot.Exists) BackupFolder(diRoot);
+							if (diRoot.Exists) BackupFolder(diRoot, enableRecreateFullPath, diRoot.FullName);
 							//else {
 							//	Output("Folder cannot be read: "+diRoot.FullName);
 							//}
@@ -1760,7 +1828,8 @@ namespace ExpertMultimedia {
 					}//end if sCommandLower==addfolder
 					else if (sCommandLower=="loadprofile") {
 						Common.sParticiple="setting DestSubFolder";
-						RunScriptLine("DestSubFolder:Backup-"+Environment.MachineName, "<loadprofile automation>", -1);  // ok since happens before main.ini
+						RunScriptLine("DestSubFolder:Backup-"+Environment.MachineName, enableRecreateFullPath, "<loadprofile automation>", -1);  // ok since happens before main.ini
+						RunScriptLine("RecreateFullPathOnBackup:on", enableRecreateFullPath, "<loadprofile automation>", -1);  // ok since happens before main.ini
 						Common.iDebugLevel=Common.DebugLevel_Mega;//debug only
 						this.menuitemEditScript.Enabled=false;
 						this.menuitemEditMain.Enabled=false;
@@ -1789,9 +1858,9 @@ namespace ExpertMultimedia {
 							Common.ClearExtraDestinations();
 							string MainScriptFile_FullName=Path.Combine(BackupProfileFolder_FullName,MainScriptFile_Name);
 							//string ProfileFolder_FullName;
-							RunScript(MainScriptFile_FullName); //excludes and adds destinations
+							RunScript(MainScriptFile_FullName, recreateFullPathCheckBox.Checked); //excludes and adds destinations
 							
-							if (File.Exists( Path.Combine(BackupProfileFolder_FullName, LogFile_Name) )) RunScript(BackupProfileFolder_FullName + Common.sDirSep + LogFile_Name); //excludes and adds destinations
+							if (File.Exists( Path.Combine(BackupProfileFolder_FullName, LogFile_Name) )) RunScript(BackupProfileFolder_FullName + Common.sDirSep + LogFile_Name, recreateFullPathCheckBox.Checked); //excludes and adds destinations
 							bLoadedProfile=true;
 							Common.UpdateSelectableDrivesAndPseudoRoots(true);
 							Common.sParticiple="finished updating Drives and PseudoRoots";
@@ -1942,6 +2011,9 @@ namespace ExpertMultimedia {
 					else if (sCommandLower=="exitifnousabledrivesfound") {
 						bExitIfNoUsableDrivesFound=ToBool(sValue);
 					}
+					else if (sCommandLower=="recreatefullpathonbackup") {
+						this.recreateFullPathCheckBox.Checked = ToBool(sValue);
+					}
 					else if (sCommandLower=="alwaysstayopen") {
 						bAlwaysStayOpen=ToBool(sValue);
 					}
@@ -1973,7 +2045,7 @@ namespace ExpertMultimedia {
 			catch (Exception exn) {
 				Common.ShowExn(exn,"parsing line "+Common.SafeString(sLine,true)+" {iLine+1:"+(iLine+1).ToString()+"; status:"+tbStatus.Text+"}");
 				try {
-					LogWriteLine("RunScriptLine("+((sLine!=null)?("\""+sLine+"\""):"null")+","+((sFile!=null)?("\""+sFile+"\""):"null")+","+lineNumber.ToString());
+					LogWriteLine("RunScriptLine("+((sLine!=null)?("\""+sLine+"\""):"null")+","+(enableRecreateFullPath?"true":"false")+","+((sFile!=null)?("\""+sFile+"\""):"null")+","+lineNumber.ToString());
 				}
 				catch {}  // doesn't matter
 				iCouldNotFinish++;
@@ -2272,11 +2344,11 @@ namespace ExpertMultimedia {
 							//if (fiNow.Exists)
 							ReconstructPathOnBackup(fiNow.DirectoryName);
 							BackupFile(fiNow,true);
-						if (bTestOnly) Output(sListedItem,true);
+						if (bTestOnly) Output(sListedItem, true);
 						if (bUserCancelledLastRun||bDiskFullLastRun) break; //do NOT stop if Copy Error only
 					}//end if not excluded
 					if (bUserCancelledLastRun) break;
-					BackupFile(fiNow.FullName,true,fiNow)
+					BackupFile(fiNow.FullName, true, fiNow)
 				}//end foreach
 			}
 			catch (Exception exn) {
@@ -2581,7 +2653,7 @@ namespace ExpertMultimedia {
 				else {
 					mainformNow.progressbarMain.Style=ProgressBarStyle.Marquee;
 				}
-				if (!RunScript(Path.Combine(MainForm.BackupProfileFolder_FullName,BackupScriptFile_Name))) bGood=false;
+				if (!RunScript(Path.Combine(MainForm.BackupProfileFolder_FullName,BackupScriptFile_Name), recreateFullPathCheckBox.Checked)) bGood=false;
 				if (mainformNow.progressbarMain.Style==ProgressBarStyle.Marquee) {
 					mainformNow.progressbarMain.Style=ProgressBarStyle.Continuous;
 					mainformNow.progressbarMain.Value=bGood?mainformNow.progressbarMain.Maximum:(mainformNow.progressbarMain.Maximum/2);
@@ -2783,7 +2855,7 @@ namespace ExpertMultimedia {
 				string sMsg="";
 				tbStatus.Text="Running startup script (please wait)...";
 				Application.DoEvents();
-				RunScript(StartupFile_FullName);
+				RunScript(StartupFile_FullName, recreateFullPathCheckBox.Checked);
 				this.profileLabel.Visible=true;
 				Console.Error.WriteLine("Finished " + Common.SafeString(StartupScriptFile_Name,true)+" in MainFormLoad");
 				bFoundLoadProfile=false;
@@ -2804,7 +2876,7 @@ namespace ExpertMultimedia {
 				
 				if (!bLoadedProfile) {  //TODO: deprecate this case
 					Console.Error.WriteLine(Common.SafeString(StartupScriptFile_Name,true)+" did not load a profile so loading default (\""+DefaultProfile_Name+"\")");
-					bool bTest=RunScriptLine("LoadProfile:"+DefaultProfile_Name, "<automation in StartupTimerTick>", -1);
+					bool bTest=RunScriptLine("LoadProfile:"+DefaultProfile_Name, recreateFullPathCheckBox.Checked, "<automation in StartupTimerTick>", -1);
 					Console.Error.WriteLine("Loaded Profile \""+DefaultProfile_Name+"\"..."+(bTest?"OK":"FAILED!"));
 					string sAllData="";
 					try {
