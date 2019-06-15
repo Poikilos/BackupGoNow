@@ -147,6 +147,11 @@ namespace ExpertMultimedia {
 		//	}
 		//	return "";
 		//}
+		void LogWriteLine(string line) {
+			//NOTE: this.lbOut.Items.Add gets saved to last run log later.
+			this.lbOut.Items.Add(line);
+			Console.Error.WriteLine();
+		}
 		bool SaveOutputToTextFile() {
 			bool bGood=false;
 			StreamWriter outStream=null;
@@ -564,7 +569,7 @@ namespace ExpertMultimedia {
 					}
 					if (sLine.StartsWith("#")) Console.Error.WriteLine("\t"+sLine);
 					else iNonCommentLines++;
-					RunScriptLine(sLine);
+					RunScriptLine(sLine, sFileX, iLine+1);
 					iLine++;
 					if (bDiskFullLastRun||bUserCancelledLastRun) break; //do NOT stop if Copy Error only
 				}//end while lines in script
@@ -642,7 +647,7 @@ namespace ExpertMultimedia {
 				//	alCopyError.Clear();
 				//}
 				bGood=true;
-				Console.Error.WriteLine();//in case RunScriptLine failed after a Write
+				Console.Error.WriteLine();  // in case RunScriptLine failed after a Write
 				if (File.Exists(sFileX)) { 
 					Console.Error.WriteLine("Reading \"" + sFileX + "\"..."  +  ( (iCouldNotFinish>0) ? (iCouldNotFinish.ToString()+" lines FAILED!") : ("OK") )  );
 				}
@@ -1550,21 +1555,27 @@ namespace ExpertMultimedia {
 			}
 			return sValue;
 		}
-		public bool RunScriptLine(string sLine) {
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="sLine"></param>
+		/// <param name="sFile">For debugging purposes</param>
+		/// <param name="iLine">For debugging purposes</param>
+		/// <returns></returns>
+		public bool RunScriptLine(string sLine, string sFile, int lineNumber) {
 			bool bForceBad=false;
 			bool bGood=false;
 			try {
 				Common.RemoveEndsWhiteSpaceByRef(ref sLine);
 				Common.sParticiple="showing line";
 				sLine=sLine.Trim();
-				//if (sLine==null||(sLine.Length>0&&!sLine.StartsWith("#"))) this.lbOut.Items.Add(Common.SafeString(sLine,true,false));
+				//if (sLine==null||(sLine.Length>0&&!sLine.StartsWith("#"))) LogWriteLine(Common.SafeString(sLine,true,false));
 				Common.sParticiple="parsing line";
 				int iMarker=sLine.IndexOf(":");
-				if (iMarker>0 && sLine.Length>(iMarker+1)) {
-					string sCommandLower=sLine.Substring(0,iMarker).ToLower();
-					string sValue=sLine.Substring(iMarker+1);
+				if (iMarker>0) {  // && sLine.Length>(iMarker+1)) {
+					string sCommandLower=sLine.Substring(0,iMarker).ToLower().Trim();
+					string sValue=sLine.Substring(iMarker+1).Trim();
 					sValue=ReplacedUserVars(sValue);
-					
 					//%USERPROFILE%
 					if (sCommandLower.StartsWith("#")) {
 						//ignore
@@ -1670,26 +1681,26 @@ namespace ExpertMultimedia {
 										alFoldersTheoretical.Add(FolderTheoretical_FullName);
 									}
 								}
-								this.lbOut.Items.Add("Adding ("+alFoldersTheoretical.Count.ToString()+") folder(s) via wildcard "+Common.SafeString(sValue,true)+"...");
+								LogWriteLine("Adding ("+alFoldersTheoretical.Count.ToString()+") folder(s) via wildcard "+Common.SafeString(sValue,true)+"...");
 								Application.DoEvents();
 								int iNonExcludable=0;
 								int iWildcardsAdded=0;
 								foreach (string sFolderTheoretical in alFoldersTheoretical) {
 									if (!sFolderTheoretical.Contains(Common.SlashWildSlash)) {
 										if (!Common.IsExcludedFolder(new DirectoryInfo(sFolderTheoretical))) { //if (!Common.IsExcludedFolder(new DirectoryInfo(sFolderTheoretical),true,true,false)) {
-											RunScriptLine("AddFolder:"+sFolderTheoretical);
+											RunScriptLine("AddFolder:"+sFolderTheoretical, "<wildcard in "+((sFile!=null)?sFile:"null")+">", lineNumber);
 											iNonExcludable++;
 										}
 									}
 									else {
-										RunScriptLine("AddFolder:"+sFolderTheoretical);
+										RunScriptLine("AddFolder:"+sFolderTheoretical, "<wildcard in "+((sFile!=null)?sFile:"null")+">", lineNumber);
 										iWildcardsAdded++;
 									}
 								}
-								if (iNonExcludable>0) this.lbOut.Items.Add("Done adding ("+iNonExcludable.ToString()+") folder(s) via wildcard and "+iWildcardsAdded.ToString()+" recursive wildcard folders.");
+								if (iNonExcludable>0) LogWriteLine("Done adding ("+iNonExcludable.ToString()+") folder(s) via wildcard and "+iWildcardsAdded.ToString()+" recursive wildcard folders.");
 							}
 							else {
-								this.lbOut.Items.Add("ERROR: Folder does not exist ("+Common.SafeString(BaseFolder_FullName,true)+")--cannot add specified subfolder(s) via wildcard.");
+								LogWriteLine("ERROR: Folder does not exist ("+Common.SafeString(BaseFolder_FullName,true)+")--cannot add specified subfolder(s) via wildcard.");
 							}
 						}
 						else {//alFoldersTheoretical.Add(sValue);
@@ -1749,7 +1760,7 @@ namespace ExpertMultimedia {
 					}//end if sCommandLower==addfolder
 					else if (sCommandLower=="loadprofile") {
 						Common.sParticiple="setting DestSubFolder";
-						RunScriptLine("DestSubFolder:Backup-"+Environment.MachineName);  // ok since happens before main.ini
+						RunScriptLine("DestSubFolder:Backup-"+Environment.MachineName, "<loadprofile automation>", -1);  // ok since happens before main.ini
 						Common.iDebugLevel=Common.DebugLevel_Mega;//debug only
 						this.menuitemEditScript.Enabled=false;
 						this.menuitemEditMain.Enabled=false;
@@ -1939,8 +1950,14 @@ namespace ExpertMultimedia {
 						Output("Test mode turned "+(bTestOnly?"on":"off")+"."+(bTestOnly?"  No files will be copied.":""));
 					}
 					else if (sCommandLower=="destsubfolder") {
-						if (sValue.Trim()=="") DestSubfolderRelNameThenSlash=null;
-						else DestSubfolderRelNameThenSlash=Common.LocalFolderThenSlash(sValue.Trim());
+						if (sValue.Trim()=="") {
+							DestSubfolderRelNameThenSlash=null;
+							LogWriteLine("DestSubfolderRelNameThenSlash:null");
+						}
+						else {
+							DestSubfolderRelNameThenSlash=Common.LocalFolderThenSlash(sValue.Trim());
+							LogWriteLine("DestSubfolderRelNameThenSlash:"+DestSubfolderRelNameThenSlash);
+						}
 					}
 					//TODO: else if (sCommandLower=="minimumdate") {
 					//	Common.SetMinimumDateToCheckFolder(sValue);
@@ -1955,6 +1972,10 @@ namespace ExpertMultimedia {
 			}
 			catch (Exception exn) {
 				Common.ShowExn(exn,"parsing line "+Common.SafeString(sLine,true)+" {iLine+1:"+(iLine+1).ToString()+"; status:"+tbStatus.Text+"}");
+				try {
+					LogWriteLine("RunScriptLine(\""+sCommandLower+":"+sValue+"\",\""+((sFile!=null)?("\""+sFile+"\""):"null")+"\","+lineNumber.ToString());
+				}
+				catch {}  // doesn't matter
 				iCouldNotFinish++;
 			}
 			return bGood;
@@ -1975,6 +1996,12 @@ namespace ExpertMultimedia {
 				StreamReader inStream=new StreamReader(thisScriptFile_RelOrFullName);
 				int atRowIndex = 0;
 				int colCount = thisTableLayoutPanel.ColumnCount;
+				thisTableLayoutPanel.Hide();
+				string prevousTipText = optionsHelpLabel.Text;
+				optionsHelpLabel.Text = "Loading options...";
+				bool previousTipVisible = optionsHelpLabel.Visible;
+				optionsHelpLabel.Show();
+				Application.DoEvents();
 				while ( (line=inStream.ReadLine()) != null ) {
 					line=line.Trim();
 					if (line.Length>0) {
@@ -2032,16 +2059,24 @@ namespace ExpertMultimedia {
 							newDeleteButton.Click += new System.EventHandler(this.AnyRemoveOptionIndexButtonClick);
 							optionsTableLayoutPanel.Controls.Add(newDeleteButton, optionColumnIndex_DeleteButton, atRowIndex);
 						}
-						if (line.StartsWith("#")) optionsTableLayoutPanel.RowStyles[atRowIndex].Height=0;
+						else {  // Comment in script--still add it, so indices line up
+							optionsTableLayoutPanel.RowStyles[atRowIndex].Height=0;
+						}
 						atRowIndex++;
 					}//if line length>0
 				}
+				optionsHelpLabel.Text = prevousTipText;
+				if (!previousTipVisible) optionsHelpLabel.Hide();
+				
 				inStream.Close();
 				//thisTableLayoutPanel.Controls[0] = lastRow;
 			}
 			catch (Exception exn) {
 				string msg="Could not finish ShowOptions:"+Environment.NewLine+exn.ToString();
 				Output(msg,true);
+			}
+			finally {
+				thisTableLayoutPanel.Show();
 			}
 		}//end ShowOptions
 
@@ -2417,67 +2452,70 @@ namespace ExpertMultimedia {
 				if (DestSubfolderRelNameThenSlash!=null)
 					sDestPrefix += DestSubfolderRelNameThenSlash;
 				DirectoryInfo dest_root_di=new DirectoryInfo(sDestPrefix);
-				DirectoryInfo[] dis=dest_root_di.GetDirectories();
-				//NOTE: last letter in each bad_name_examples is drive letter!
-				string[] bad_name_examples={"2017M4d9H251SSC","2017M12d12H251SSC","2017M12d9H251SSC","2017M9d12H251SSC",
-											"2017M4d9H1251SSC","2017M12d12H1251SSC","2017M12d9H1251SSC","2017M9d12H1251SSC"};
+				DirectoryInfo[] dis=null;
 				int check_bad_retro_count=0;
-				foreach (DirectoryInfo di in dis) {
-					check_bad_retro_count+=1;
-					// 2017M4d9H251SSC should be 2017/04/09/0251?? where ?? is second
-					bool bad_enable=false;
-					string source_drive_letter=null;
-					for (int i=0; i<bad_name_examples.Length; i++) {
-						if (di.Name.Length==bad_name_examples[i].Length) {
-							int bad_M=bad_name_examples[i].IndexOf("M");
-							int bad_d=bad_name_examples[i].IndexOf("d");
-							int bad_H=bad_name_examples[i].IndexOf("H");
-							if ( di.Name.Substring(0,di.Name.Length-1).EndsWith("SS")
-								&& di.Name[bad_M]==bad_name_examples[i][bad_M]
-							    && di.Name[bad_d]==bad_name_examples[i][bad_d]
-							    && di.Name[bad_H]==bad_name_examples[i][bad_H]
-							   ) {
-								source_drive_letter=di.Name.Substring(di.Name.Length-1);
-								bad_enable=true;
-								break;
-							}
-						}
-					}
-					if (bad_enable) {
-						Console.Error.WriteLine("bad_retroactive_folder: "+di.FullName);
-						FileInfo[] fis=get_deepest_fis(di);
-						if (fis!=null) {  // not empty folder
-							foreach (FileInfo fi in fis) {
-								string dated_path=get_retroactive_timed_folder_partialpath_from_UTC(fi.LastWriteTimeUtc);
-								while (dated_path.EndsWith(Common.sDirSep)) dated_path=dated_path.Substring(0, dated_path.Length-1);
-								while (dated_path.StartsWith(Common.sDirSep)) dated_path=dated_path.Substring(1);
-								dated_path+=Common.sDirSep+source_drive_letter;
-								string new_dir_path=fi.Directory.FullName.Replace(di.Name, dated_path);
-								new_dir_path.Replace(Common.sDirSep+Common.sDirSep, Common.sDirSep);
-								if (new_dir_path.EndsWith(Common.sDirSep)) new_dir_path=new_dir_path.Substring(0, new_dir_path.Length-1);
-								string new_path=Path.Combine(new_dir_path, fi.Name);
-								Console.Error.WriteLine("move_bad_retroactive_from:"+fi.FullName);
-								Console.Error.WriteLine("move_bad_retroactive_to:"+new_path);
-								try {
-									Directory.CreateDirectory(new_dir_path);
-									fi.Attributes=FileAttributes.Normal;
-									fi.MoveTo(new_path);
-								}
-								catch (Exception exn) {
-									Console.Error.WriteLine("Could not finish correcting bad retroactive path: "+exn.ToString());
+				if (dest_root_di.Exists) {
+					dis=dest_root_di.GetDirectories();
+					//NOTE: last letter in each bad_name_examples is drive letter!
+					string[] bad_name_examples={"2017M4d9H251SSC","2017M12d12H251SSC","2017M12d9H251SSC","2017M9d12H251SSC",
+												"2017M4d9H1251SSC","2017M12d12H1251SSC","2017M12d9H1251SSC","2017M9d12H1251SSC"};
+					foreach (DirectoryInfo di in dis) {
+						check_bad_retro_count+=1;
+						// 2017M4d9H251SSC should be 2017/04/09/0251?? where ?? is second
+						bool bad_enable=false;
+						string source_drive_letter=null;
+						for (int i=0; i<bad_name_examples.Length; i++) {
+							if (di.Name.Length==bad_name_examples[i].Length) {
+								int bad_M=bad_name_examples[i].IndexOf("M");
+								int bad_d=bad_name_examples[i].IndexOf("d");
+								int bad_H=bad_name_examples[i].IndexOf("H");
+								if ( di.Name.Substring(0,di.Name.Length-1).EndsWith("SS")
+									&& di.Name[bad_M]==bad_name_examples[i][bad_M]
+								    && di.Name[bad_d]==bad_name_examples[i][bad_d]
+								    && di.Name[bad_H]==bad_name_examples[i][bad_H]
+								   ) {
+									source_drive_letter=di.Name.Substring(di.Name.Length-1);
+									bad_enable=true;
+									break;
 								}
 							}
 						}
-						try {
-							Console.Error.WriteLine("move_bad_empty_retroactive_path:"+di.FullName);
-							di.Delete(true);
+						if (bad_enable) {
+							Console.Error.WriteLine("bad_retroactive_folder: "+di.FullName);
+							FileInfo[] fis=get_deepest_fis(di);
+							if (fis!=null) {  // not empty folder
+								foreach (FileInfo fi in fis) {
+									string dated_path=get_retroactive_timed_folder_partialpath_from_UTC(fi.LastWriteTimeUtc);
+									while (dated_path.EndsWith(Common.sDirSep)) dated_path=dated_path.Substring(0, dated_path.Length-1);
+									while (dated_path.StartsWith(Common.sDirSep)) dated_path=dated_path.Substring(1);
+									dated_path+=Common.sDirSep+source_drive_letter;
+									string new_dir_path=fi.Directory.FullName.Replace(di.Name, dated_path);
+									new_dir_path.Replace(Common.sDirSep+Common.sDirSep, Common.sDirSep);
+									if (new_dir_path.EndsWith(Common.sDirSep)) new_dir_path=new_dir_path.Substring(0, new_dir_path.Length-1);
+									string new_path=Path.Combine(new_dir_path, fi.Name);
+									Console.Error.WriteLine("move_bad_retroactive_from:"+fi.FullName);
+									Console.Error.WriteLine("move_bad_retroactive_to:"+new_path);
+									try {
+										Directory.CreateDirectory(new_dir_path);
+										fi.Attributes=FileAttributes.Normal;
+										fi.MoveTo(new_path);
+									}
+									catch (Exception exn) {
+										Console.Error.WriteLine("Could not finish correcting bad retroactive path: "+exn.ToString());
+									}
+								}
+							}
+							try {
+								Console.Error.WriteLine("move_bad_empty_retroactive_path:"+di.FullName);
+								di.Delete(true);
+							}
+							catch (Exception exn) {
+								Console.Error.WriteLine("Could not finish removing bad empty retroactive path: "+exn.ToString());
+							}
 						}
-						catch (Exception exn) {
-							Console.Error.WriteLine("Could not finish removing bad empty retroactive path: "+exn.ToString());
+						else {
+							Console.Error.WriteLine("ok_retroactive_folder: "+di.FullName);
 						}
-					}
-					else {
-						Console.Error.WriteLine("ok_retroactive_folder: "+di.FullName);
 					}
 				}
 				if (check_bad_retro_count==0) {
@@ -2766,7 +2804,7 @@ namespace ExpertMultimedia {
 				
 				if (!bLoadedProfile) {  //TODO: deprecate this case
 					Console.Error.WriteLine(Common.SafeString(StartupScriptFile_Name,true)+" did not load a profile so loading default (\""+DefaultProfile_Name+"\")");
-					bool bTest=RunScriptLine("LoadProfile:"+DefaultProfile_Name);
+					bool bTest=RunScriptLine("LoadProfile:"+DefaultProfile_Name, "<automation in StartupTimerTick>", -1);
 					Console.Error.WriteLine("Loaded Profile \""+DefaultProfile_Name+"\"..."+(bTest?"OK":"FAILED!"));
 					string sAllData="";
 					try {
