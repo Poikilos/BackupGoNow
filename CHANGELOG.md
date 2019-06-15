@@ -11,17 +11,27 @@ Annotations:
 ## [1.0.2] - 2018-06-14
 (changed 2018-06-14; tagged 2018-06-15 on GitHub)
 ### Added
+* button for "Add File"
 * checkbox for "Recreate Full Path on Backup"
-* recreates directory name (but still not full path) when "Recreate Full Path on Backup" is checked
+* recreate directory name (but still not full path) when "Recreate Full Path on Backup" is unchecked
+
 ### Changed
 * for DestSubFolder option: when "Recreate Full Path on Backup" is unchecked, the non-blank DestSubFolder is now still used (always use the new modified ReconstructedBackupPath in AddFile, instead of skipping it).
 * renamed bUseReconstructedPath AddFile param to enableRecreateFullPath
 
 ## [1.0.1] - 2018-06-14
+### Added
+* code comment on default DestSubFolder
+* allow blank values in scripts
+* allow null DestSubfolderRelNameThenSlash
+### Changed
+* (prevent compile error related to code added above) fix syntax of debug output
 
 ## [1.0.0] - 2018-06-14
 ### Added
 * release binary (see 2018-07-15 for last changes); all previous releases were only on website's hidden releases directory
+### Changed
+* state version as "git" in title bar except when set manually (hardcoded) for releases
 
 ## [Unreleased] - 2017-08-03
 ### Added
