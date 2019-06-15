@@ -1973,7 +1973,7 @@ namespace ExpertMultimedia {
 			catch (Exception exn) {
 				Common.ShowExn(exn,"parsing line "+Common.SafeString(sLine,true)+" {iLine+1:"+(iLine+1).ToString()+"; status:"+tbStatus.Text+"}");
 				try {
-					LogWriteLine("RunScriptLine(\""+sCommandLower+":"+sValue+"\",\""+((sFile!=null)?("\""+sFile+"\""):"null")+"\","+lineNumber.ToString());
+					LogWriteLine("RunScriptLine("+((sLine!=null)?("\""+sLine+"\""):"null")+","+((sFile!=null)?("\""+sFile+"\""):"null")+","+lineNumber.ToString());
 				}
 				catch {}  // doesn't matter
 				iCouldNotFinish++;
