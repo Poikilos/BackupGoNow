@@ -58,6 +58,7 @@ namespace ExpertMultimedia
 			this.logTabPage = new System.Windows.Forms.TabPage();
 			this.flowLayoutPanel1 = new System.Windows.Forms.FlowLayoutPanel();
 			this.addFolderButton = new System.Windows.Forms.Button();
+			this.addFileButton = new System.Windows.Forms.Button();
 			this.destinationTableLayoutPanel = new System.Windows.Forms.TableLayoutPanel();
 			this.driveLabel = new System.Windows.Forms.Label();
 			this.goFlowLayoutPanel = new System.Windows.Forms.FlowLayoutPanel();
@@ -73,6 +74,7 @@ namespace ExpertMultimedia
 			this.saveFileDialog1 = new System.Windows.Forms.SaveFileDialog();
 			this.startupTimer = new System.Windows.Forms.Timer(this.components);
 			this.mainFolderBrowserDialog = new System.Windows.Forms.FolderBrowserDialog();
+			this.openFileDialog1 = new System.Windows.Forms.OpenFileDialog();
 			this.mainTableLayoutPanel.SuspendLayout();
 			this.mainTabControl.SuspendLayout();
 			this.optionsTabPage.SuspendLayout();
@@ -276,10 +278,11 @@ namespace ExpertMultimedia
 			this.flowLayoutPanel1.AutoSize = true;
 			this.flowLayoutPanel1.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
 			this.flowLayoutPanel1.Controls.Add(this.addFolderButton);
+			this.flowLayoutPanel1.Controls.Add(this.addFileButton);
 			this.flowLayoutPanel1.Location = new System.Drawing.Point(4, 298);
 			this.flowLayoutPanel1.Margin = new System.Windows.Forms.Padding(4);
 			this.flowLayoutPanel1.Name = "flowLayoutPanel1";
-			this.flowLayoutPanel1.Size = new System.Drawing.Size(108, 42);
+			this.flowLayoutPanel1.Size = new System.Drawing.Size(216, 42);
 			this.flowLayoutPanel1.TabIndex = 16;
 			// 
 			// addFolderButton
@@ -292,6 +295,17 @@ namespace ExpertMultimedia
 			this.addFolderButton.Text = "Add Folder";
 			this.addFolderButton.UseVisualStyleBackColor = true;
 			this.addFolderButton.Click += new System.EventHandler(this.AddFolderButtonClick);
+			// 
+			// addFileButton
+			// 
+			this.addFileButton.Location = new System.Drawing.Point(112, 4);
+			this.addFileButton.Margin = new System.Windows.Forms.Padding(4);
+			this.addFileButton.Name = "addFileButton";
+			this.addFileButton.Size = new System.Drawing.Size(100, 34);
+			this.addFileButton.TabIndex = 1;
+			this.addFileButton.Text = "Add File";
+			this.addFileButton.UseVisualStyleBackColor = true;
+			this.addFileButton.Click += new System.EventHandler(this.AddFileButtonClick);
 			// 
 			// destinationTableLayoutPanel
 			// 
@@ -430,6 +444,10 @@ namespace ExpertMultimedia
 			this.mainFolderBrowserDialog.RootFolder = System.Environment.SpecialFolder.MyComputer;
 			this.mainFolderBrowserDialog.HelpRequest += new System.EventHandler(this.MainFolderBrowserDialogHelpRequest);
 			// 
+			// openFileDialog1
+			// 
+			this.openFileDialog1.FileName = "openFileDialog1";
+			// 
 			// MainForm
 			// 
 			this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 19F);
@@ -465,6 +483,8 @@ namespace ExpertMultimedia
 			this.ResumeLayout(false);
 			this.PerformLayout();
 		}
+		private System.Windows.Forms.OpenFileDialog openFileDialog1;
+		private System.Windows.Forms.Button addFileButton;
 		private System.Windows.Forms.ComboBox destinationComboBox;
 		private System.Windows.Forms.FolderBrowserDialog mainFolderBrowserDialog;
 		private System.Windows.Forms.Timer startupTimer;

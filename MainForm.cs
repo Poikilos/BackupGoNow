@@ -2875,67 +2875,6 @@ namespace ExpertMultimedia {
 			}
 		}//end StartupTimerTick 
 		
-		void AddFolderButtonClick(object sender, EventArgs e)
-		{
-			DialogResult thisDR=mainFolderBrowserDialog.ShowDialog();
-			if (thisDR==DialogResult.OK) {
-				string commandString="AddFolder";
-				string valueString=mainFolderBrowserDialog.SelectedPath;
-				string line=commandString+":"+valueString;
-				TableLayoutPanel thisTableLayoutPanel=optionsTableLayoutPanel;
-				int atRowIndex=thisTableLayoutPanel.RowCount;
-				thisTableLayoutPanel.RowStyles.Insert(atRowIndex, new RowStyle(SizeType.AutoSize));
-				thisTableLayoutPanel.RowCount += 1;
-				
-				System.Windows.Forms.Label newCommandLabel = new System.Windows.Forms.Label();
-				newCommandLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
-				newCommandLabel.AutoSize = true;
-				newCommandLabel.Location = new System.Drawing.Point(0, 0);
-				newCommandLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-				newCommandLabel.Name = "row"+atRowIndex.ToString()+"CommandLabel";
-				newCommandLabel.Size = new System.Drawing.Size(88, 19);
-				newCommandLabel.TabIndex = 100+atRowIndex*thisTableLayoutPanel.ColumnCount+optionColumnIndex_Command;
-				newCommandLabel.Text = commandString;
-				newCommandLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-				thisTableLayoutPanel.Controls.Add(newCommandLabel,optionColumnIndex_Command,atRowIndex);//thisCommandCell.Controls.Add(newCommandLabel);
-				//Output("Added command cell "+newCommandLabel.Name,true);
-
-				if (!line.StartsWith("#")) {
-					System.Windows.Forms.Label newValueLabel = new System.Windows.Forms.Label();
-					newValueLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
-					newValueLabel.AutoSize = true;
-					newValueLabel.Location = new System.Drawing.Point(0, 0);
-					newValueLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-					newValueLabel.Name = "row"+atRowIndex.ToString()+"ValueLabel";
-					newValueLabel.Size = new System.Drawing.Size(88, 19);
-					newValueLabel.TabIndex = 100+atRowIndex*thisTableLayoutPanel.ColumnCount+optionColumnIndex_Value;
-					newValueLabel.Text = valueString;
-					newValueLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-					thisTableLayoutPanel.Controls.Add(newValueLabel,optionColumnIndex_Value,atRowIndex);//thisCommandCell.Controls.Add(newCommandLabel);
-				
-				
-					System.Windows.Forms.Button newRemoveButton;
-					newRemoveButton = new System.Windows.Forms.Button();
-					newRemoveButton.Anchor = System.Windows.Forms.AnchorStyles.Left;
-					newRemoveButton.AutoSize = true;
-					newRemoveButton.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-					newRemoveButton.Location = new System.Drawing.Point(0, 0);
-					newRemoveButton.Name = "row"+atRowIndex.ToString()+"DeleteButton";
-					newRemoveButton.Tag = "DeleteOptionIndex:"+atRowIndex.ToString();
-					newRemoveButton.Size = new System.Drawing.Size(75, 21);
-					newRemoveButton.TabIndex = 0;
-					newRemoveButton.Text = "Remove";
-					newRemoveButton.UseVisualStyleBackColor = true;
-                    newRemoveButton.Click += new System.EventHandler(this.AnyRemoveOptionIndexButtonClick);
-                    optionsTableLayoutPanel.Controls.Add(newRemoveButton, optionColumnIndex_DeleteButton, atRowIndex);
-				}
-				optionsTableLayoutPanel.ScrollControlIntoView(newCommandLabel);
-				SaveOptions();
-			}
-			else {
-				tbStatus.Text="Adding a Folder was cancelled by user.";
-			}
-		}
 		public void SaveOptions() {
 			SaveOptions(null);
 		}
@@ -3030,6 +2969,85 @@ namespace ExpertMultimedia {
 			}
 			else this.driveLabel.Text="";
 			//tbStatus.Text="Destination is now \""+Common.LocalFolderThenSlash(DestinationDriveRootDirectory_FullName_OrSlashIfRootDir)+((DestSubfolderRelNameThenSlash!=null)?DestSubfolderRelNameThenSlash:"")+"\"";
+		}
+
+				void AddCommand(string commandString, string valueString) {
+			string line=commandString+":"+((valueString!=null)?valueString:"");
+			TableLayoutPanel thisTableLayoutPanel=optionsTableLayoutPanel;
+			int atRowIndex=thisTableLayoutPanel.RowCount;
+			thisTableLayoutPanel.RowStyles.Insert(atRowIndex, new RowStyle(SizeType.AutoSize));
+			thisTableLayoutPanel.RowCount += 1;
+			
+			System.Windows.Forms.Label newCommandLabel = new System.Windows.Forms.Label();
+			newCommandLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
+			newCommandLabel.AutoSize = true;
+			newCommandLabel.Location = new System.Drawing.Point(0, 0);
+			newCommandLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+			newCommandLabel.Name = "row"+atRowIndex.ToString()+"CommandLabel";
+			newCommandLabel.Size = new System.Drawing.Size(88, 19);
+			newCommandLabel.TabIndex = 100+atRowIndex*thisTableLayoutPanel.ColumnCount+optionColumnIndex_Command;
+			newCommandLabel.Text = commandString;
+			newCommandLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+			thisTableLayoutPanel.Controls.Add(newCommandLabel,optionColumnIndex_Command,atRowIndex);//thisCommandCell.Controls.Add(newCommandLabel);
+			//Output("Added command cell "+newCommandLabel.Name,true);
+
+			if (!line.StartsWith("#")) {
+				System.Windows.Forms.Label newValueLabel = new System.Windows.Forms.Label();
+				newValueLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
+				newValueLabel.AutoSize = true;
+				newValueLabel.Location = new System.Drawing.Point(0, 0);
+				newValueLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+				newValueLabel.Name = "row"+atRowIndex.ToString()+"ValueLabel";
+				newValueLabel.Size = new System.Drawing.Size(88, 19);
+				newValueLabel.TabIndex = 100+atRowIndex*thisTableLayoutPanel.ColumnCount+optionColumnIndex_Value;
+				newValueLabel.Text = valueString;
+				newValueLabel.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+				thisTableLayoutPanel.Controls.Add(newValueLabel,optionColumnIndex_Value,atRowIndex);//thisCommandCell.Controls.Add(newCommandLabel);
+			
+			
+				System.Windows.Forms.Button newRemoveButton;
+				newRemoveButton = new System.Windows.Forms.Button();
+				newRemoveButton.Anchor = System.Windows.Forms.AnchorStyles.Left;
+				newRemoveButton.AutoSize = true;
+				newRemoveButton.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+				newRemoveButton.Location = new System.Drawing.Point(0, 0);
+				newRemoveButton.Name = "row"+atRowIndex.ToString()+"DeleteButton";
+				newRemoveButton.Tag = "DeleteOptionIndex:"+atRowIndex.ToString();
+				newRemoveButton.Size = new System.Drawing.Size(75, 21);
+				newRemoveButton.TabIndex = 0;
+				newRemoveButton.Text = "Remove";
+				newRemoveButton.UseVisualStyleBackColor = true;
+                newRemoveButton.Click += new System.EventHandler(this.AnyRemoveOptionIndexButtonClick);
+                optionsTableLayoutPanel.Controls.Add(newRemoveButton, optionColumnIndex_DeleteButton, atRowIndex);
+			}
+			optionsTableLayoutPanel.ScrollControlIntoView(newCommandLabel);
+			SaveOptions();
+		}
+		
+		void AddFolderButtonClick(object sender, EventArgs e)
+		{
+			DialogResult thisDR=mainFolderBrowserDialog.ShowDialog();
+			if (thisDR==DialogResult.OK) {
+				string commandString="AddFolder";
+				string valueString=mainFolderBrowserDialog.SelectedPath;
+				AddCommand(commandString, valueString);
+			}
+			else {
+				tbStatus.Text="You cancelled adding a folder.";
+			}
+		}
+
+		void AddFileButtonClick(object sender, EventArgs e)
+		{
+			DialogResult thisDR=openFileDialog1.ShowDialog();
+			if (thisDR==DialogResult.OK) {
+				string commandString="AddFile";
+				string valueString=mainFolderBrowserDialog.SelectedPath;
+				AddCommand(commandString, valueString);
+			}
+			else {
+				tbStatus.Text="You cancelled adding a file.";
+			}
 		}
 	}//end MainForm
 }//end namespace
