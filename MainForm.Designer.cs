@@ -244,6 +244,7 @@ namespace ExpertMultimedia
 			// optionsTableLayoutPanel
 			// 
 			this.optionsTableLayoutPanel.AutoScroll = true;
+			this.optionsTableLayoutPanel.CellBorderStyle = System.Windows.Forms.TableLayoutPanelCellBorderStyle.Single;
 			this.optionsTableLayoutPanel.ColumnCount = 3;
 			this.optionsTableLayoutPanel.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 20F));
 			this.optionsTableLayoutPanel.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 60F));

@@ -130,7 +130,7 @@ namespace ExpertMultimedia {
 		private static long ulByteCountDestTotalSize=0;
 		private static long ulByteCountDestAvailableFreeSpace=0;
 		private static string DestinationDriveRootDirectory_FullName_OrSlashIfRootDir="";
-		private static string DestSubfolderRelNameThenSlash="";
+		private static string DestSubfolderRelNameThenSlash=null;
 		
 		private static ArrayList alFolderFullName=new ArrayList();
 		private static ArrayList alFolderLabel=new ArrayList();
@@ -232,7 +232,7 @@ namespace ExpertMultimedia {
 		//public static string sDestRootThenSlash="";
 		public static bool bStartedCopyingAnyFiles=false;
 		//private static string sDestPathSlash {
-		//	get { return sDestRootThenSlash+DestSubfolderRelNameThenSlash; }
+		//	get { return sDestRootThenSlash+((DestSubfolderRelNameThenSlash!=null)?DestSubfolderRelNameThenSlash:null); }
 		//}
 		public MainForm() {
 			MyAppDataFolder_FullName=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),sMyName);
@@ -812,7 +812,7 @@ namespace ExpertMultimedia {
 				if (!sDestRootThenSlash.EndsWith(Common.sDirSep)) sDestRootThenSlash+=Common.sDirSep;
 			}
 			else bGood=false;
-			if (DestSubfolderRelNameThenSlash!="") {
+			if (DestSubfolderRelNameThenSlash!="" && DestSubfolderRelNameThenSlash!=null) {
 				while (DestSubfolderRelNameThenSlash.StartsWith(Common.sDirSep)) DestSubfolderRelNameThenSlash=(DestSubfolderRelNameThenSlash.Length>1)?DestSubfolderRelNameThenSlash.Substring(1):"";
 				if (!DestSubfolderRelNameThenSlash.EndsWith(Common.sDirSep)) DestSubfolderRelNameThenSlash+=Common.sDirSep;
 			}
@@ -827,8 +827,8 @@ namespace ExpertMultimedia {
 		/// <returns>The path where the folder originally was on the source before it was deleted from the source</returns>
 		public string ReconstructedSourcePath(string sBackupPath) {
 			string sReturn=sBackupPath;
-			//sBackupPath is constructed using: destinationComboBox.Items.Add(Common.LocalFolderThenSlash(locinfoarrPseudoRoot[iNow].FullName) + DestSubfolderRelNameThenSlash);
-			string sDestPrefix=Common.LocalFolderThenSlash(DestinationDriveRootDirectory_FullName_OrSlashIfRootDir)+DestSubfolderRelNameThenSlash;
+			//sBackupPath is constructed using: destinationComboBox.Items.Add(Common.LocalFolderThenSlash(locinfoarrPseudoRoot[iNow].FullName) + ((DestSubfolderRelNameThenSlash!=null)?DestSubfolderRelNameThenSlash:"");
+			string sDestPrefix=Common.LocalFolderThenSlash(DestinationDriveRootDirectory_FullName_OrSlashIfRootDir)+((DestSubfolderRelNameThenSlash!=null)?DestSubfolderRelNameThenSlash:null);
 			if (sReturn.StartsWith(sDestPrefix)) {
 				if (sReturn.Length>sDestPrefix.Length) {
 					sReturn=sReturn.Substring(sDestPrefix.Length);
@@ -860,7 +860,7 @@ namespace ExpertMultimedia {
 			//Output("Reconstruction sSrcPath(as received): "+sSrcPath);//debug only
 			//Output("Reconstruction DestinationDriveRootDirectory_FullName_OrSlashIfRootDir(as received): "+DestinationDriveRootDirectory_FullName_OrSlashIfRootDir);//debug only
 			//NOTE: Common.LocalFolderThenSlash just makes sure it ends with a slash and uses Common.sDirSep
-			string sReturn=null;//Common.LocalFolderThenSlash(DestinationDriveRootDirectory_FullName_OrSlashIfRootDir)+DestSubfolderRelNameThenSlash;
+			string sReturn=null;//Common.LocalFolderThenSlash(DestinationDriveRootDirectory_FullName_OrSlashIfRootDir)+((DestSubfolderRelNameThenSlash!=null)?DestSubfolderRelNameThenSlash:"");
 			sReturn=DestinationDriveRootDirectory_FullName_OrSlashIfRootDir;
 			if (DestSubfolderRelNameThenSlash!=null) {
 				sReturn=Path.Combine(DestinationDriveRootDirectory_FullName_OrSlashIfRootDir,DestSubfolderRelNameThenSlash);
@@ -1799,7 +1799,7 @@ namespace ExpertMultimedia {
 //							foreach (string sNow in alSelectableDrives) {
 //								Output("Found potential backup drive "+sNow,true);
 //								destinationComboBox.Items.Add(Common.LocalFolderThenSlash(sNow) 
-//								                 + DestSubfolderRelNameThenSlash);
+//								                 + ((DestSubfolderRelNameThenSlash!=null)?DestSubfolderRelNameThenSlash:""));
 //								comboIndex=destinationComboBox.Items.Count-1;
 //								
 //							}
@@ -1939,7 +1939,8 @@ namespace ExpertMultimedia {
 						Output("Test mode turned "+(bTestOnly?"on":"off")+"."+(bTestOnly?"  No files will be copied.":""));
 					}
 					else if (sCommandLower=="destsubfolder") {
-						DestSubfolderRelNameThenSlash=Common.LocalFolderThenSlash(sValue);
+						if (sValue.Trim()=="") DestSubfolderRelNameThenSlash=null;
+						else DestSubfolderRelNameThenSlash=Common.LocalFolderThenSlash(sValue.Trim());
 					}
 					//TODO: else if (sCommandLower=="minimumdate") {
 					//	Common.SetMinimumDateToCheckFolder(sValue);
@@ -2412,7 +2413,9 @@ namespace ExpertMultimedia {
 			if (this.destinationComboBox.Text!="") {
 				
 				//fix errant retroactive backup folders from old versions:
-				string sDestPrefix=Common.LocalFolderThenSlash(DestinationDriveRootDirectory_FullName_OrSlashIfRootDir)+DestSubfolderRelNameThenSlash;
+				string sDestPrefix=Common.LocalFolderThenSlash(DestinationDriveRootDirectory_FullName_OrSlashIfRootDir);
+				if (DestSubfolderRelNameThenSlash!=null)
+					sDestPrefix += DestSubfolderRelNameThenSlash;
 				DirectoryInfo dest_root_di=new DirectoryInfo(sDestPrefix);
 				DirectoryInfo[] dis=dest_root_di.GetDirectories();
 				//NOTE: last letter in each bad_name_examples is drive letter!
@@ -2527,7 +2530,8 @@ namespace ExpertMultimedia {
 				//if (!SetDestFolder(destinationComboBox.Text)) bGood=false; //instead of this, path is already assured to be good since it is in the list, and ulByteCountDestTotalSize & ulByteCountDestAvailableFreeSpace are set by the IndexedChanged event handler
 				
 				if (bDeleteFilesNotOnSource_BeforeBackup) {
-					//string sDestPrefix=Common.LocalFolderThenSlash(DestinationDriveRootDirectory_FullName_OrSlashIfRootDir)+DestSubfolderRelNameThenSlash;
+					//string sDestPrefix=Common.LocalFolderThenSlash(DestinationDriveRootDirectory_FullName_OrSlashIfRootDir)
+					//    + ((DestSubfolderRelNameThenSlash!=null)?DestSubfolderRelNameThenSlash:"");
 					if (sDestPrefix.Length>1&&sDestPrefix.EndsWith(Common.sDirSep)) sDestPrefix=sDestPrefix.Substring(0,sDestPrefix.Length-1);
 					//TODO: DeleteIfNotOnSource_Recursively(sDestPrefix);
 					//TODO: MessageBox.Show("Reconstructed source \""+sReturn+"\" "+((Directory.Exists(sReturn))?"exists":"does not exist"));
@@ -2982,12 +2986,12 @@ namespace ExpertMultimedia {
 				DestinationDriveRootDirectory_FullName_OrSlashIfRootDir=locinfoNow.DriveRoot_FullNameThenSlash;//locinfoNow.DriveRoot_FullNameThenSlash+locinfoNow.Subfolder_NameThenSlash_NoStartingSlash;
 				if (DestinationDriveRootDirectory_FullName_OrSlashIfRootDir!=Common.sDirSep&&DestinationDriveRootDirectory_FullName_OrSlashIfRootDir.EndsWith(Common.sDirSep)) DestinationDriveRootDirectory_FullName_OrSlashIfRootDir=DestinationDriveRootDirectory_FullName_OrSlashIfRootDir.Substring(0,DestinationDriveRootDirectory_FullName_OrSlashIfRootDir.Length-Common.sDirSep.Length);
 				bool bGB=locinfoNow.AvailableFreeSpace/1024/1024/1024 > 0;
-				this.driveLabel.Text=Common.LocalFolderThenSlash(DestinationDriveRootDirectory_FullName_OrSlashIfRootDir)+DestSubfolderRelNameThenSlash+" ("
+				this.driveLabel.Text=Common.LocalFolderThenSlash(DestinationDriveRootDirectory_FullName_OrSlashIfRootDir)+((DestSubfolderRelNameThenSlash!=null)?DestSubfolderRelNameThenSlash:"")+" ("
 					+ ((locinfoNow.AvailableFreeSpace!=Int64.MaxValue)  ?  ( bGB ? (((decimal)locinfoNow.AvailableFreeSpace/1024m/1024m/1024m).ToString("#")+"GB free"):(((decimal)locinfoNow.AvailableFreeSpace/1024m/1024m).ToString("0.###")+"MB free") )  :  "unknown free"  )
 					+ ")";
 			}
 			else this.driveLabel.Text="";
-			//tbStatus.Text="Destination is now \""+Common.LocalFolderThenSlash(DestinationDriveRootDirectory_FullName_OrSlashIfRootDir)+DestSubfolderRelNameThenSlash+"\"";
+			//tbStatus.Text="Destination is now \""+Common.LocalFolderThenSlash(DestinationDriveRootDirectory_FullName_OrSlashIfRootDir)+((DestSubfolderRelNameThenSlash!=null)?DestSubfolderRelNameThenSlash:"")+"\"";
 		}
 	}//end MainForm
 }//end namespace
