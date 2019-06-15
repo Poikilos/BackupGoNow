@@ -1749,7 +1749,7 @@ namespace ExpertMultimedia {
 					}//end if sCommandLower==addfolder
 					else if (sCommandLower=="loadprofile") {
 						Common.sParticiple="setting DestSubFolder";
-						RunScriptLine("DestSubFolder:Backup-"+Environment.MachineName);
+						RunScriptLine("DestSubFolder:Backup-"+Environment.MachineName);  // ok since happens before main.ini
 						Common.iDebugLevel=Common.DebugLevel_Mega;//debug only
 						this.menuitemEditScript.Enabled=false;
 						this.menuitemEditMain.Enabled=false;
