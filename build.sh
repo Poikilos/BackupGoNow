@@ -7,13 +7,12 @@ fi
 #formerly gmcs:
 mcs /target:winexe /out:bin/Backup\ GoNow.exe /win32icon:BackupGoNow.ico \
     AssemblyInfo.cs \
-    Common.cs \
-    LocInfo.cs \
+    ../ForwardFileSync/Common.cs \
+    ../ForwardFileSync/LocInfo.cs \
     MainForm.cs \
     MainForm.Designer.cs \
     Program.cs \
-    ../FolderLister/src/FolderLister.cs \
-    ../UniWinForms/src/Chunker.cs \
+    MyCallBack_WinForms.cs \
     /resource:MainForm.resx,MainForm \
     /r:System.Drawing.dll \
     /r:System.Windows.Forms.dll \
