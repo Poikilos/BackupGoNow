@@ -4,6 +4,7 @@ if [ -f "bin/Backup\ GoNow.exe" ]; then
     mv bin/Backup\ GoNow.exe bin/Backup\ GoNow.exe.wip
 fi
 #NOTE: if above was in quotes, mac put a quote in the filename and then had 'cannot contain "'  error when I try to rename!
+if [ ! -d bin ]; then mkdir bin; fi
 #formerly gmcs:
 mcs /target:winexe /out:bin/BackupGoNow.exe /win32icon:BackupGoNow.ico \
     AssemblyInfo.cs \
