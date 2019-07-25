@@ -5,7 +5,7 @@ if [ -f "bin/Backup\ GoNow.exe" ]; then
 fi
 #NOTE: if above was in quotes, mac put a quote in the filename and then had 'cannot contain "'  error when I try to rename!
 #formerly gmcs:
-mcs /target:winexe /out:bin/Backup\ GoNow.exe /win32icon:BackupGoNow.ico \
+mcs /target:winexe /out:bin/BackupGoNow.exe /win32icon:BackupGoNow.ico \
     AssemblyInfo.cs \
     ../ForwardFileSync/Common.cs \
     ../ForwardFileSync/LocInfo.cs \
@@ -17,4 +17,8 @@ mcs /target:winexe /out:bin/Backup\ GoNow.exe /win32icon:BackupGoNow.ico \
     /r:System.Drawing.dll \
     /r:System.Windows.Forms.dll \
     /r:System.Data.dll \
-    /r:System.Xml.dll
+    /r:System.Xml.dll \
+    1>out.txt 2>err.txt
+if [ -f "`command -v outputinspector`" ]; then
+    outputinspector
+fi
