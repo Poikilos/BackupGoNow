@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Backup GoNow
+Comment=
+Exec=mono /home/joy/git/BackupGoNow/bin/BackupGoNow.exe
+Icon=/home/joy/git/BackupGoNow/BackupGoNow.png
+Path=/home/joy/git/BackupGoNow/bin
+Terminal=false
+StartupNotify=false
