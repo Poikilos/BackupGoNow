@@ -36,6 +36,13 @@ mcs /target:winexe /out:$outPath /win32icon:BackupGoNow.ico \
     /r:System.Data.dll \
     /r:System.Xml.dll \
     1>out.txt 2>err.txt
-# if [ -f "`command -v outputinspector`" ]; then
-    # outputinspector
-# fi
+if [ -f "`command -v outputinspector`" ]; then
+    outputinspector
+else
+    echo
+    cat out.txt
+    echo
+    cat err.txt
+    echo
+    echo
+fi
