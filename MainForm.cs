@@ -1686,6 +1686,14 @@ namespace ExpertMultimedia {
 						}
 						if (bTestOnly) Output("#Exclusions changed: "+sTemp);
 					}
+					else if (sCommandLower=="excludefolderfullname") {
+						Common.excluded_paths.Add(ReplacedUserVars(sValue));
+						string sTemp="";
+						foreach (string sExclusion in Common.excluded_paths) {
+							sTemp+=(sTemp==""?"":", ")+sExclusion;
+						}
+						if (bTestOnly) Output("#Excluded paths changed: "+sTemp);
+					}
 					else if (sCommandLower=="uselastretroactivedirectoryanswer") {
 						useLastDirectoryDREnable=ToBool(sValue);
 					}
@@ -2469,6 +2477,17 @@ namespace ExpertMultimedia {
 				backupStream.WriteLine(@"Exclude:UsrClass.dat");
 				backupStream.WriteLine(@"Exclude:UsrClass.dat.LOG");
 				backupStream.WriteLine(@"Exclude:ntuser.dat.LOG");
+				backupStream.WriteLine(@"ExcludeFolderFullname:%APPDATA%\Mozilla\Firefox\Profiles\*\crashes");
+				backupStream.WriteLine(@"ExcludeFolderFullname:%APPDATA%\Mozilla\Firefox\Profiles\*\datareporting");
+				backupStream.WriteLine(@"ExcludeFolderFullname:%APPDATA%\Mozilla\Firefox\Profiles\*\extensions");
+				backupStream.WriteLine(@"ExcludeFolderFullname:%APPDATA%\Mozilla\Firefox\Profiles\*\features");
+				backupStream.WriteLine(@"ExcludeFolderFullname:%APPDATA%\Mozilla\Firefox\Profiles\*\gmp*");
+				backupStream.WriteLine(@"ExcludeFolderFullname:%APPDATA%\Mozilla\Firefox\Profiles\*\healthreport");
+				backupStream.WriteLine(@"ExcludeFolderFullname:%APPDATA%\Mozilla\Firefox\Profiles\*\minidumps");
+				backupStream.WriteLine(@"ExcludeFolderFullname:%APPDATA%\Mozilla\Firefox\Profiles\*\saved-telemetry-pings");
+				backupStream.WriteLine(@"ExcludeFolderFullname:%APPDATA%\Mozilla\Firefox\Profiles\*\searchplugins");
+				backupStream.WriteLine(@"ExcludeFolderFullname:%APPDATA%\Mozilla\Firefox\Profiles\*\WOT");
+				backupStream.WriteLine(@"ExcludeFolderFullname:%APPDATA%\Thunderbird\Profiles\*\extensions");
 				backupStream.WriteLine();
 				backupStream.WriteLine(@"#AddFolder:%USERPROFILE%");
 				backupStream.WriteLine(@"AddFolder:%USERPROFILE%\.minetest");
@@ -2485,11 +2504,16 @@ namespace ExpertMultimedia {
 				backupStream.WriteLine(@"Exclude:Crash Reports");
 				backupStream.WriteLine();
 				backupStream.WriteLine(@"AddFolder:%APPDATA%\ASUS");
+				backupStream.WriteLine(@"AddFolder:%APPDATA%\ASUS WebStorage");
 				backupStream.WriteLine(@"AddFolder:%APPDATA%\Corel");
 				backupStream.WriteLine(@"AddFolder:%APPDATA%\IrfanView");
 				backupStream.WriteLine(@"AddFolder:%APPDATA%\LeaderTech");
 				backupStream.WriteLine(@"AddFolder:%APPDATA%\MAGIX");
 				backupStream.WriteLine(@"AddFolder:%APPDATA%\Mozilla\Firefox");
+				backupStream.WriteLine(@"AddFolder:%APPDATA%\NAPS2");
+				backupStream.WriteLine(@"AddFolder:%APPDATA%\NuGet");
+				backupStream.WriteLine(@"AddFolder:%APPDATA%\Skype");
+				backupStream.WriteLine(@"AddFolder:%APPDATA%\Sony Corporation");
 				backupStream.WriteLine(@"AddFolder:%APPDATA%\Thunderbird");
 				backupStream.WriteLine();
 				backupStream.WriteLine(@"AddFolder:%LOCALAPPDATA%\Asus");
@@ -2561,7 +2585,15 @@ namespace ExpertMultimedia {
 									while (dated_path.EndsWith(Common.sDirSep)) dated_path=dated_path.Substring(0, dated_path.Length-1);
 									while (dated_path.StartsWith(Common.sDirSep)) dated_path=dated_path.Substring(1);
 									dated_path+=Common.sDirSep+source_drive_letter;
-									string new_dir_path=fi.Directory.FullName.Replace(di.Name, dated_path);
+									string new_dir_path = null;
+									try {
+										new_dir_path=fi.Directory.FullName.Replace(di.Name, dated_path);
+									}
+									catch (System.IO.PathTooLongException innerEx) {
+										// TODO handle this
+										Console.Error.WriteLine("bad_dated_path:"+dated_path);
+										continue;
+									}
 									new_dir_path.Replace(Common.sDirSep+Common.sDirSep, Common.sDirSep);
 									if (new_dir_path.EndsWith(Common.sDirSep)) new_dir_path=new_dir_path.Substring(0, new_dir_path.Length-1);
 									string new_path=Path.Combine(new_dir_path, fi.Name);
