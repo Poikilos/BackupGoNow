@@ -68,6 +68,10 @@ namespace ExpertMultimedia {
 		public static bool bTestOnly=false;
 		public static bool bAutoScroll=true;
 		public static bool clear_buttons_enabled=false;
+		public bool retroactiveAnswerIsStored=false;
+		public bool retroactiveAnswer=false;
+		public bool retroactiveUnmovableAnswerIsStored=false;
+		public bool retroactiveUnmovableAnswer=false;
 		public static string sAppName="Backup GoNow";
 		public static string MyAppDataFolder_FullName=null;
 		public static string thisProfileFolder_FullName=null;
@@ -479,9 +483,24 @@ namespace ExpertMultimedia {
 								fiDest.MoveTo(fiDest_Retroactive_FullName);
 							}
 							catch (Exception exn) {
-								DialogResult thisDR=MessageBox.Show("This file:\n "+fiDest.FullName+"\n could not be moved to retroactive file \n"+fiDest_Retroactive_FullName+"\n Do you want to keep it anyway (Yes is recommended)?","Backup GoNow",MessageBoxButtons.YesNo);
-								if (thisDR==DialogResult.No) {
+								string ask = "This file:\n "+fiDest.FullName+"\n could not be moved to retroactive file \n"+fiDest_Retroactive_FullName+"\n Do you want to keep it anyway (Yes is recommended)?";
+								DialogResult thisDR = this.retroactiveUnmovableAnswer ? DialogResult.Yes : DialogResult.No;
+								if (!this.retroactiveUnmovableAnswerIsStored) {
+									// DialogResult thisDR=MessageBox.Show(ask, "Backup GoNow", MessageBoxButtons.YesNo);
+									RetroactiveAskForm askForm = new RetroactiveAskForm();
+									askForm.TopLevel = true;
+									// askForm.Parent = this;
+									// DialogResult thisDR = askForm.ShowDialog(this);
+									thisDR = askForm.ShowDialog(this, ask);
+									askForm.BringToFront();
+									this.retroactiveUnmovableAnswerIsStored = askForm.remember;
+								}
+								if (thisDR == DialogResult.No) {
+									this.retroactiveUnmovableAnswer = false;
 									fiDest.Delete();
+								}
+								else if (thisDR == DialogResult.Yes) {
+									this.retroactiveUnmovableAnswer = true;
 								}
 								WriteLastRunLog("Could not finish making file \""+fiDest.FullName+"\" retroactive as \""+fiDest_Retroactive_FullName+"\""+exn.ToString());
 							}
@@ -2518,6 +2537,7 @@ namespace ExpertMultimedia {
 				backupStream.WriteLine();
 				backupStream.WriteLine(@"AddFolder:%LOCALAPPDATA%\Asus");
 				backupStream.WriteLine(@"AddFolder:%LOCALAPPDATA%\CEF");
+				backupStream.WriteLine(@"ExcludeFolderFullname:%LOCALAPPDATA%\Google\Chrome\User Data\Default\Extensions");
 				backupStream.WriteLine(@"AddFolder:%LOCALAPPDATA%\Google\Chrome\User Data\Default");
 				backupStream.WriteLine(@"AddFolder:%LOCALAPPDATA%\IM");
 				backupStream.WriteLine(@"AddFolder:%LOCALAPPDATA%\Skype");

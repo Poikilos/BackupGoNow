@@ -1,4 +1,5 @@
-﻿<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <ProjectGuid>{88A5A638-95E5-4085-8453-17E6C9A6ABCA}</ProjectGuid>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -59,8 +60,15 @@
     </Compile>
     <Compile Include="MyCallBack_WinForms.cs" />
     <Compile Include="Program.cs" />
+    <Compile Include="RetroactiveAskForm.cs" />
+    <Compile Include="RetroactiveAskForm.Designer.cs">
+      <DependentUpon>RetroactiveAskForm.cs</DependentUpon>
+    </Compile>
     <EmbeddedResource Include="MainForm.resx">
       <DependentUpon>MainForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="RetroactiveAskForm.resx">
+      <DependentUpon>RetroactiveAskForm.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
 </Project>
