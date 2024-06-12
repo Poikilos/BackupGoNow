@@ -1638,271 +1638,263 @@ namespace ExpertMultimedia {
 			}
 			return sValue;
 		}
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <param name="sLine"></param>
-		/// <param name="sFile">For debugging purposes</param>
-		/// <param name="iLine">For debugging purposes</param>
-		/// <returns></returns>
-		public bool RunScriptLine(string sLine, bool enableRecreateFullPath, string sFile, int lineNumber) {
+		private bool _RunScriptLine(string sLine, bool enableRecreateFullPath, string sFile, int lineNumber) {
 			bool bForceBad=false;
 			bool bGood=false;
-			try {
-				Common.RemoveEndsWhiteSpaceByRef(ref sLine);
-				Common.sParticiple="showing line";
-				sLine=sLine.Trim();
-				//if (sLine==null||(sLine.Length>0&&!sLine.StartsWith("#"))) LogWriteLine(Common.SafeString(sLine,true,false));
-				Common.sParticiple="parsing line";
-				int iMarker=sLine.IndexOf(":");
-				if (iMarker>0) {  // && sLine.Length>(iMarker+1)) {
-					string sCommandLower=sLine.Substring(0,iMarker).ToLower().Trim();
-					string sValue=sLine.Substring(iMarker+1).Trim();
-					LogWriteLine("RunScriptLine("+((sLine!=null)?("\""+sLine+"\""):"null")+","+(enableRecreateFullPath?"true":"false")+","+((sFile!=null)?("\""+sFile+"\""):"null")+","+lineNumber.ToString());
-					sValue=ReplacedUserVars(sValue);
-					//%USERPROFILE%
-					if (sCommandLower.StartsWith("#")) {
-						//ignore
+			Common.RemoveEndsWhiteSpaceByRef(ref sLine);
+			Common.sParticiple="showing line";
+			sLine=sLine.Trim();
+			//if (sLine==null||(sLine.Length>0&&!sLine.StartsWith("#"))) LogWriteLine(Common.SafeString(sLine,true,false));
+			Common.sParticiple="parsing line";
+			int iMarker=sLine.IndexOf(":");
+			if (iMarker>0) {  // && sLine.Length>(iMarker+1)) {
+				string sCommandLower=sLine.Substring(0,iMarker).ToLower().Trim();
+				string sValue=sLine.Substring(iMarker+1).Trim();
+				LogWriteLine("RunScriptLine("+((sLine!=null)?("\""+sLine+"\""):"null")+","+(enableRecreateFullPath?"true":"false")+","+((sFile!=null)?("\""+sFile+"\""):"null")+","+lineNumber.ToString());
+				sValue=ReplacedUserVars(sValue);
+				//%USERPROFILE%
+				if (sCommandLower.StartsWith("#")) {
+					//ignore
+				}
+				else if (sCommandLower=="excludedest") {
+					char thisSlash=Common.getSlash(sValue);
+					//lbOut.Items.Add("Got slash: "+char.ToString(thisSlash));
+					if (thisSlash==(char)0 || thisSlash==Path.DirectorySeparatorChar) {
+						Common.AddDriveToInvalidDrives(sValue);
+						//lbOut.Items.Add("Not using "+sValue+" for backup");
 					}
-					else if (sCommandLower=="excludedest") {
-						char thisSlash=Common.getSlash(sValue);
-						//lbOut.Items.Add("Got slash: "+char.ToString(thisSlash));
-						if (thisSlash==(char)0 || thisSlash==Path.DirectorySeparatorChar) {
-							Common.AddDriveToInvalidDrives(sValue);
-							//lbOut.Items.Add("Not using "+sValue+" for backup");
-						}
-						else {
+					else {
 //							string msg="Ignoring exclusion "+sValue+" since it is not a valid path on this OS.";
 //							lbOut.Items.Add(msg);
 //							Console.Error.WriteLine(msg);
-						}
 					}
-					else if (sCommandLower=="includedest") {
-						Common.AddPathToExtraPseudoRootsToManuallyAdd(sValue);
+				}
+				else if (sCommandLower=="includedest") {
+					Common.AddPathToExtraPseudoRootsToManuallyAdd(sValue);
+				}
+				else if (sCommandLower=="addmask") {
+					Common.allowed_names.Add(sValue);
+					string sTemp="";
+					foreach (string sMask in Common.allowed_names) {
+						sTemp+=(sTemp==""?"":", ")+sMask;
 					}
-					else if (sCommandLower=="addmask") {
-						Common.allowed_names.Add(sValue);
-						string sTemp="";
-						foreach (string sMask in Common.allowed_names) {
-							sTemp+=(sTemp==""?"":", ")+sMask;
-						}
-						if (bTestOnly) Output("#Masks changed: "+sTemp);
+					if (bTestOnly) Output("#Masks changed: "+sTemp);
+				}
+				else if (sCommandLower=="removemask") {
+					if (sValue=="*") Common.allowed_names.Clear();
+					else Common.allowed_names.Remove(sValue);
+					string sTemp="";
+					foreach (string sMask in Common.allowed_names) {
+						sTemp+=(sTemp==""?"":", ")+sMask;
 					}
-					else if (sCommandLower=="removemask") {
-						if (sValue=="*") Common.allowed_names.Clear();
-						else Common.allowed_names.Remove(sValue);
-						string sTemp="";
-						foreach (string sMask in Common.allowed_names) {
-							sTemp+=(sTemp==""?"":", ")+sMask;
-						}
-						if (bTestOnly) Output("#Masks changed: "+sTemp);
+					if (bTestOnly) Output("#Masks changed: "+sTemp);
+				}
+				else if (sCommandLower=="exclude") {
+					Common.excluded_names.Add(sValue);
+					string sTemp="";
+					foreach (string sExclusion in Common.excluded_names) {
+						sTemp+=(sTemp==""?"":", ")+sExclusion;
 					}
-					else if (sCommandLower=="exclude") {
-						Common.excluded_names.Add(sValue);
-						string sTemp="";
-						foreach (string sExclusion in Common.excluded_names) {
-							sTemp+=(sTemp==""?"":", ")+sExclusion;
-						}
-						if (bTestOnly) Output("#Exclusions changed: "+sTemp);
+					if (bTestOnly) Output("#Exclusions changed: "+sTemp);
+				}
+				else if (sCommandLower=="excludefolderfullname") {
+					Common.excluded_paths.Add(ReplacedUserVars(sValue));
+					string sTemp="";
+					foreach (string sExclusion in Common.excluded_paths) {
+						sTemp+=(sTemp==""?"":", ")+sExclusion;
 					}
-					else if (sCommandLower=="excludefolderfullname") {
-						Common.excluded_paths.Add(ReplacedUserVars(sValue));
-						string sTemp="";
-						foreach (string sExclusion in Common.excluded_paths) {
-							sTemp+=(sTemp==""?"":", ")+sExclusion;
-						}
-						if (bTestOnly) Output("#Excluded paths changed: "+sTemp);
+					if (bTestOnly) Output("#Excluded paths changed: "+sTemp);
+				}
+				else if (sCommandLower=="uselastretroactivedirectoryanswer") {
+					useLastDirectoryDREnable=ToBool(sValue);
+				}
+				else if (sCommandLower=="include") {
+					if (sValue=="*") Common.excluded_names.Clear();
+					else Common.excluded_names.Remove(sValue);
+					string sTemp="";
+					foreach (string sExclusion in Common.excluded_names) {
+						sTemp+=(sTemp==""?"":", ")+sExclusion;
 					}
-					else if (sCommandLower=="uselastretroactivedirectoryanswer") {
-						useLastDirectoryDREnable=ToBool(sValue);
-					}
-					else if (sCommandLower=="include") {
-						if (sValue=="*") Common.excluded_names.Clear();
-						else Common.excluded_names.Remove(sValue);
-						string sTemp="";
-						foreach (string sExclusion in Common.excluded_names) {
-							sTemp+=(sTemp==""?"":", ")+sExclusion;
-						}
-						if (bTestOnly) Output("#Exclusions changed: "+sTemp);
-					}
-					else if (sCommandLower=="addfile") {
-						if (sValue!=null&&sValue!="") {
-							ArrayList alFiles=new ArrayList();
-							int iWild=sValue.IndexOf(Common.SlashWildSlash);
-							DirectoryInfo diBranch=null;
-							if ((iWild>-1)&&(sValue.Length>iWild+3)) {
-								Output("Listing folders for wildcard \""+sValue+"\":");
-								diBranch=new DirectoryInfo(sValue.Substring(0,iWild+1));//+1 in case /*/ so that / will be used
-								foreach (DirectoryInfo diNow in diBranch.GetDirectories()) {
-									alFiles.Add( sValue.Substring(0,iWild+1)+diNow.Name+sValue.Substring(iWild+2) );
-									Output("  "+sValue.Substring(0,iWild+1)+diNow.Name+sValue.Substring(iWild+2));
-								}
-								if (alFiles.Count<1) Output("  No matching folders.");
+					if (bTestOnly) Output("#Exclusions changed: "+sTemp);
+				}
+				else if (sCommandLower=="addfile") {
+					if (sValue!=null&&sValue!="") {
+						ArrayList alFiles=new ArrayList();
+						int iWild=sValue.IndexOf(Common.SlashWildSlash);
+						DirectoryInfo diBranch=null;
+						if ((iWild>-1)&&(sValue.Length>iWild+3)) {
+							Output("Listing folders for wildcard \""+sValue+"\":");
+							diBranch=new DirectoryInfo(sValue.Substring(0,iWild+1));//+1 in case /*/ so that / will be used
+							foreach (DirectoryInfo diNow in diBranch.GetDirectories()) {
+								alFiles.Add( sValue.Substring(0,iWild+1)+diNow.Name+sValue.Substring(iWild+2) );
+								Output("  "+sValue.Substring(0,iWild+1)+diNow.Name+sValue.Substring(iWild+2));
 							}
-							else alFiles.Add(sValue);
-							foreach (string sFileTheoretical in alFiles) {
-								try {ulByteCountTotal+=(ulong)(new FileInfo(sFileTheoretical)).Length;}
-								catch {}
-								FileInfo fiSrc=new FileInfo(sFileTheoretical);
-								if (fiSrc.Exists) {
-									ulByteCountTotal+=(ulong)fiSrc.Length;
-									//if (fiX.Exists())
-									ReconstructPathOnBackup(fiSrc.DirectoryName, enableRecreateFullPath, fiSrc.Directory.FullName);
-									//alFilesBackedUpManually.Add(Path.Combine(ReconstructedBackupPath(fiSrc.DirectoryName,null),fiSrc.Name));
-									if (!Common.IsExcludedFile(fiSrc)) {
-										string resultPath = BackupFile(sFileTheoretical, enableRecreateFullPath, fiSrc.FullName, null);  // if (!Common.IsExcludedFile(fiSrc.Directory,fiSrc)) BackupFile(sFileTheoretical,true);
-										alFilesBackedUpManually.Add(resultPath);
+							if (alFiles.Count<1) Output("  No matching folders.");
+						}
+						else alFiles.Add(sValue);
+						foreach (string sFileTheoretical in alFiles) {
+							try {ulByteCountTotal+=(ulong)(new FileInfo(sFileTheoretical)).Length;}
+							catch {}
+							FileInfo fiSrc=new FileInfo(sFileTheoretical);
+							if (fiSrc.Exists) {
+								ulByteCountTotal+=(ulong)fiSrc.Length;
+								//if (fiX.Exists())
+								ReconstructPathOnBackup(fiSrc.DirectoryName, enableRecreateFullPath, fiSrc.Directory.FullName);
+								//alFilesBackedUpManually.Add(Path.Combine(ReconstructedBackupPath(fiSrc.DirectoryName,null),fiSrc.Name));
+								if (!Common.IsExcludedFile(fiSrc)) {
+									string resultPath = BackupFile(sFileTheoretical, enableRecreateFullPath, fiSrc.FullName, null);  // if (!Common.IsExcludedFile(fiSrc.Directory,fiSrc)) BackupFile(sFileTheoretical,true);
+									alFilesBackedUpManually.Add(resultPath);
+								}
+							}
+							else {
+								bCopyErrorLastRun=true;
+								alCopyError.Add("File specified in configuration does not exist"+sCopyErrorFileFullNameOpener+sFileTheoretical+sCopyErrorFileFullNameCloser);
+							}
+						}//end foreach file (single file unless path has wildcard)
+					}//end if sValue is not blank
+				}//end if sCommandLower=="addfile"
+				else if (sCommandLower=="addfolder") {
+					int iSlashWildSlash=sValue.IndexOf(Common.SlashWildSlash);
+					if (iSlashWildSlash>-1) {
+						ArrayList alFoldersTheoretical=new ArrayList();
+						string BaseFolder_FullName=sValue.Substring(0,iSlashWildSlash);
+						DirectoryInfo diBase=new DirectoryInfo(BaseFolder_FullName);
+						string SpecifiedFolder_Name=sValue.Substring(iSlashWildSlash+Common.SlashWildSlash.Length);
+						if (diBase.Exists) {
+							foreach (DirectoryInfo diNow in diBase.GetDirectories()) {
+								string FolderTheoretical_FullName=Path.Combine( Path.Combine(diBase.FullName,diNow.Name), SpecifiedFolder_Name );
+								if (FolderTheoretical_FullName.Contains(Common.SlashWildSlash) //allow Common.SlashWildSlash to allow recursive usage of Common.SlashWildSlash
+								    ||Directory.Exists(FolderTheoretical_FullName)) {
+									alFoldersTheoretical.Add(FolderTheoretical_FullName);
+								}
+							}
+							LogWriteLine("Adding ("+alFoldersTheoretical.Count.ToString()+") folder(s) via wildcard "+Common.SafeString(sValue,true)+"...");
+							Application.DoEvents();
+							int iNonExcludable=0;
+							int iWildcardsAdded=0;
+							foreach (string sFolderTheoretical in alFoldersTheoretical) {
+								if (!sFolderTheoretical.Contains(Common.SlashWildSlash)) {
+									if (!Common.IsExcludedFolder(new DirectoryInfo(sFolderTheoretical))) { //if (!Common.IsExcludedFolder(new DirectoryInfo(sFolderTheoretical),true,true,false)) {
+										RunScriptLine("AddFolder:"+sFolderTheoretical, enableRecreateFullPath, "<wildcard in "+((sFile!=null)?sFile:"null")+">", lineNumber);
+										iNonExcludable++;
 									}
 								}
 								else {
-									bCopyErrorLastRun=true;
-									alCopyError.Add("File specified in configuration does not exist"+sCopyErrorFileFullNameOpener+sFileTheoretical+sCopyErrorFileFullNameCloser);
+									RunScriptLine("AddFolder:"+sFolderTheoretical, enableRecreateFullPath, "<wildcard in "+((sFile!=null)?sFile:"null")+">", lineNumber);
+									iWildcardsAdded++;
 								}
-							}//end foreach file (single file unless path has wildcard)
-						}//end if sValue is not blank
-					}//end if sCommandLower=="addfile"
-					else if (sCommandLower=="addfolder") {
-						int iSlashWildSlash=sValue.IndexOf(Common.SlashWildSlash);
-						if (iSlashWildSlash>-1) {
-							ArrayList alFoldersTheoretical=new ArrayList();
-							string BaseFolder_FullName=sValue.Substring(0,iSlashWildSlash);
-							DirectoryInfo diBase=new DirectoryInfo(BaseFolder_FullName);
-							string SpecifiedFolder_Name=sValue.Substring(iSlashWildSlash+Common.SlashWildSlash.Length);
-							if (diBase.Exists) {
-								foreach (DirectoryInfo diNow in diBase.GetDirectories()) {
-									string FolderTheoretical_FullName=Path.Combine( Path.Combine(diBase.FullName,diNow.Name), SpecifiedFolder_Name );
-									if (FolderTheoretical_FullName.Contains(Common.SlashWildSlash) //allow Common.SlashWildSlash to allow recursive usage of Common.SlashWildSlash
-									    ||Directory.Exists(FolderTheoretical_FullName)) {
-										alFoldersTheoretical.Add(FolderTheoretical_FullName);
-									}
-								}
-								LogWriteLine("Adding ("+alFoldersTheoretical.Count.ToString()+") folder(s) via wildcard "+Common.SafeString(sValue,true)+"...");
-								Application.DoEvents();
-								int iNonExcludable=0;
-								int iWildcardsAdded=0;
-								foreach (string sFolderTheoretical in alFoldersTheoretical) {
-									if (!sFolderTheoretical.Contains(Common.SlashWildSlash)) {
-										if (!Common.IsExcludedFolder(new DirectoryInfo(sFolderTheoretical))) { //if (!Common.IsExcludedFolder(new DirectoryInfo(sFolderTheoretical),true,true,false)) {
-											RunScriptLine("AddFolder:"+sFolderTheoretical, enableRecreateFullPath, "<wildcard in "+((sFile!=null)?sFile:"null")+">", lineNumber);
-											iNonExcludable++;
-										}
-									}
-									else {
-										RunScriptLine("AddFolder:"+sFolderTheoretical, enableRecreateFullPath, "<wildcard in "+((sFile!=null)?sFile:"null")+">", lineNumber);
-										iWildcardsAdded++;
-									}
-								}
-								if (iNonExcludable>0) LogWriteLine("Done adding ("+iNonExcludable.ToString()+") folder(s) via wildcard and "+iWildcardsAdded.ToString()+" recursive wildcard folders.");
 							}
-							else {
-								LogWriteLine("ERROR: Folder does not exist ("+Common.SafeString(BaseFolder_FullName,true)+")--cannot add specified subfolder(s) via wildcard.");
-							}
+							if (iNonExcludable>0) LogWriteLine("Done adding ("+iNonExcludable.ToString()+") folder(s) via wildcard and "+iWildcardsAdded.ToString()+" recursive wildcard folders.");
 						}
-						else {//alFoldersTheoretical.Add(sValue);
-						//foreach (string sFolderTheoretical in alFoldersTheoretical) {
-							string sSearchRoot=sValue;
-							//string Common.sDirSep=char.ToString(Path.DirectorySeparatorChar);
-							Output("Loading \""+sSearchRoot+"\""+(Common.MaskCount>0?(" (only "+Common.MasksToCSV()+")"):"")+"...");
-							//string sTempFile=Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)+"FolderList.tmp";
-							//FolderLister.SetOutputFile(sTempFile);
+						else {
+							LogWriteLine("ERROR: Folder does not exist ("+Common.SafeString(BaseFolder_FullName,true)+")--cannot add specified subfolder(s) via wildcard.");
+						}
+					}
+					else {//alFoldersTheoretical.Add(sValue);
+					//foreach (string sFolderTheoretical in alFoldersTheoretical) {
+						string sSearchRoot=sValue;
+						//string Common.sDirSep=char.ToString(Path.DirectorySeparatorChar);
+						Output("Loading \""+sSearchRoot+"\""+(Common.MaskCount>0?(" (only "+Common.MasksToCSV()+")"):"")+"...");
+						//string sTempFile=Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)+"FolderList.tmp";
+						//FolderLister.SetOutputFile(sTempFile);
+						
+						//if (bRealTime) {
+						cancelButton.Enabled=true;
+						//Common.sParticiple="getting directory info";
+						DirectoryInfo diRoot=new DirectoryInfo(sSearchRoot);
+						iDepth=-1;
+						//bBusyCopying=true;
+						if (diRoot.Exists) BackupFolder(diRoot, enableRecreateFullPath, diRoot.FullName);
+						//else {
+						//	Output("Folder cannot be read: "+diRoot.FullName);
+						//}
+						//}
+						//bBusyCopying=false;
+						cancelButton.Enabled=false;
+						//else {
+						//	menuitemCancel.Enabled=true;
 							
-							//if (bRealTime) {
-							cancelButton.Enabled=true;
-							//Common.sParticiple="getting directory info";
-							DirectoryInfo diRoot=new DirectoryInfo(sSearchRoot);
-							iDepth=-1;
-							//bBusyCopying=true;
-							if (diRoot.Exists) BackupFolder(diRoot, enableRecreateFullPath, diRoot.FullName);
-							//else {
-							//	Output("Folder cannot be read: "+diRoot.FullName);
-							//}
-							//}
-							//bBusyCopying=false;
-							cancelButton.Enabled=false;
-							//else {
-							//	menuitemCancel.Enabled=true;
-								
-							//	string[] sarrListed=flisterNow.GetLines();
-							//	ulByteCountFolderNow=flisterNow.ByteCount;
-							//	ulByteCountTotal+=ulByteCountFolderNow;
-							//	ulByteCountFolderNowDone=0;
-							//	if (bTestOnly) Output("Getting ready to copy "+(ulByteCountFolderNow/1024/1024).ToString()+"MB...");
-							//	//iListedLines=0;
-							//	//if (sarrListed!=null&&sarrListed.Length>0) {
-							//		//if (File.Exists(sTempFile)) {
-							//		//	StreamReader streamTemp=new StreamReader(sTempFile);
-							//		//	string sListedItem;
-							//		//	while ( (sListedItem=streamTemp.ReadLine()) != null ) {
-							//		sLastFileUsed=diRoot.FullName;
-							//		bContinue=true;
-							//		BackupTree(diRoot);
-							//		bContinue=false;
-							//		//	}
-							//		//	streamTemp.Close();
-							//		//	File.Delete(sTempFile);
-							//		//	Thread.Sleep(500);
-							//	//}
-							//	//else Output("Could not find any files in the added folder.");
-							//	if (iFileCount<=0) Output("Could not find any files in the added folder.");
-							//	//if (CurrentFolder_alSkippedDueToException!=null&&CurrentFolder_alSkippedDueToException.Count>0) {
-							//	//	foreach (string sSkippedNow in CurrentFolder_alSkippedDueToException) {
-							//	//		alSkippedDueToException.Add(sSkippedNow);
-							//	//	}
-							//	//	CurrentFolder_alSkippedDueToException.Clear();
-							//	//}
-							//}//else !bRealTime
-						}
-					}//end if sCommandLower==addfolder
-					else if (sCommandLower=="loadprofile") {
-						Common.sParticiple="setting DestSubFolder";
-						RunScriptLine("DestSubFolder:Backup-"+Environment.MachineName, enableRecreateFullPath, "<loadprofile automation>", -1);  // ok since happens before main.ini
-						RunScriptLine("RecreateFullPathOnBackup:on", enableRecreateFullPath, "<loadprofile automation>", -1);  // ok since happens before main.ini
-						Common.iDebugLevel=Common.DebugLevel_Mega;//debug only
-						this.menuitemEditScript.Enabled=false;
-						this.menuitemEditMain.Enabled=false;
-						Console.Error.Write("LoadProfile...");
+						//	string[] sarrListed=flisterNow.GetLines();
+						//	ulByteCountFolderNow=flisterNow.ByteCount;
+						//	ulByteCountTotal+=ulByteCountFolderNow;
+						//	ulByteCountFolderNowDone=0;
+						//	if (bTestOnly) Output("Getting ready to copy "+(ulByteCountFolderNow/1024/1024).ToString()+"MB...");
+						//	//iListedLines=0;
+						//	//if (sarrListed!=null&&sarrListed.Length>0) {
+						//		//if (File.Exists(sTempFile)) {
+						//		//	StreamReader streamTemp=new StreamReader(sTempFile);
+						//		//	string sListedItem;
+						//		//	while ( (sListedItem=streamTemp.ReadLine()) != null ) {
+						//		sLastFileUsed=diRoot.FullName;
+						//		bContinue=true;
+						//		BackupTree(diRoot);
+						//		bContinue=false;
+						//		//	}
+						//		//	streamTemp.Close();
+						//		//	File.Delete(sTempFile);
+						//		//	Thread.Sleep(500);
+						//	//}
+						//	//else Output("Could not find any files in the added folder.");
+						//	if (iFileCount<=0) Output("Could not find any files in the added folder.");
+						//	//if (CurrentFolder_alSkippedDueToException!=null&&CurrentFolder_alSkippedDueToException.Count>0) {
+						//	//	foreach (string sSkippedNow in CurrentFolder_alSkippedDueToException) {
+						//	//		alSkippedDueToException.Add(sSkippedNow);
+						//	//	}
+						//	//	CurrentFolder_alSkippedDueToException.Clear();
+						//	//}
+						//}//else !bRealTime
+					}
+				}//end if sCommandLower==addfolder
+				else if (sCommandLower=="loadprofile") {
+					Common.sParticiple="setting DestSubFolder";
+					RunScriptLine("DestSubFolder:Backup-"+Environment.MachineName, enableRecreateFullPath, "<loadprofile automation>", -1);  // ok since happens before main.ini
+					RunScriptLine("RecreateFullPathOnBackup:on", enableRecreateFullPath, "<loadprofile automation>", -1);  // ok since happens before main.ini
+					Common.iDebugLevel=Common.DebugLevel_Mega;//debug only
+					this.menuitemEditScript.Enabled=false;
+					this.menuitemEditMain.Enabled=false;
+					Console.Error.Write("LoadProfile...");
+					Console.Error.Flush();
+					//BackupProfileFolder_FullName=".";
+					char foundSlash=Common.getSlash(sValue);
+					//string BackupProfileFolder_FullName_TEMP=Path.Combine( Path.Combine(".","profiles"), sValue );
+					string BackupProfileFolder_FullName_TEMP=null;
+					if (foundSlash!=(char)0) { //if found slash
+						BackupProfileFolder_FullName_TEMP=sValue;
+					}
+					else { //else did not find slash
+						BackupProfileFolder_FullName_TEMP=Path.Combine(profilesFolder_FullName,sValue);
+					}
+					Console.Error.Write("checking \"" + BackupProfileFolder_FullName_TEMP + "\"...");
+					Console.Error.Flush();
+					if (Directory.Exists(BackupProfileFolder_FullName_TEMP)) {
+						Console.Error.Write("found...");
 						Console.Error.Flush();
-						//BackupProfileFolder_FullName=".";
-						char foundSlash=Common.getSlash(sValue);
-						//string BackupProfileFolder_FullName_TEMP=Path.Combine( Path.Combine(".","profiles"), sValue );
-						string BackupProfileFolder_FullName_TEMP=null;
-						if (foundSlash!=(char)0) { //if found slash
-							BackupProfileFolder_FullName_TEMP=sValue;
+						DirectoryInfo diProfileX = new DirectoryInfo(BackupProfileFolder_FullName_TEMP);
+						BackupProfileFolder_FullName = diProfileX.FullName;
+						this.menuitemEditScript.Enabled=true;
+						this.menuitemEditMain.Enabled=true;
+						Common.ClearInvalidDrives();
+						Common.ClearExtraDestinations();
+						string MainScriptFile_FullName=Path.Combine(BackupProfileFolder_FullName,MainScriptFile_Name);
+						//string ProfileFolder_FullName;
+						RunScript(MainScriptFile_FullName, recreateFullPathCheckBox.Checked); //excludes and adds destinations
+						
+						if (File.Exists( Path.Combine(BackupProfileFolder_FullName, LogFile_Name) )) RunScript(BackupProfileFolder_FullName + Common.sDirSep + LogFile_Name, recreateFullPathCheckBox.Checked); //excludes and adds destinations
+						bLoadedProfile=true;
+						Common.UpdateSelectableDrivesAndPseudoRoots(true);
+						Common.sParticiple="finished updating Drives and PseudoRoots";
+						if (Common.bMegaDebug) {
+							Console_Error_WriteLine_AllDebugInfo();
 						}
-						else { //else did not find slash
-							BackupProfileFolder_FullName_TEMP=Path.Combine(profilesFolder_FullName,sValue);
-						}
-						Console.Error.Write("checking \"" + BackupProfileFolder_FullName_TEMP + "\"...");
-						Console.Error.Flush();
-						if (Directory.Exists(BackupProfileFolder_FullName_TEMP)) {
-							Console.Error.Write("found...");
-							Console.Error.Flush();
-							DirectoryInfo diProfileX = new DirectoryInfo(BackupProfileFolder_FullName_TEMP);
-							BackupProfileFolder_FullName = diProfileX.FullName;
-							this.menuitemEditScript.Enabled=true;
-							this.menuitemEditMain.Enabled=true;
-							Common.ClearInvalidDrives();
-							Common.ClearExtraDestinations();
-							string MainScriptFile_FullName=Path.Combine(BackupProfileFolder_FullName,MainScriptFile_Name);
-							//string ProfileFolder_FullName;
-							RunScript(MainScriptFile_FullName, recreateFullPathCheckBox.Checked); //excludes and adds destinations
-							
-							if (File.Exists( Path.Combine(BackupProfileFolder_FullName, LogFile_Name) )) RunScript(BackupProfileFolder_FullName + Common.sDirSep + LogFile_Name, recreateFullPathCheckBox.Checked); //excludes and adds destinations
-							bLoadedProfile=true;
-							Common.UpdateSelectableDrivesAndPseudoRoots(true);
-							Common.sParticiple="finished updating Drives and PseudoRoots";
-							if (Common.bMegaDebug) {
-								Console_Error_WriteLine_AllDebugInfo();
-							}
-							//alPseudoRootsNow=Common.PseudoRoots_DriveRootFullNameThenSlash_ToArrayList();
-							
-							destinationComboBox.BeginUpdate();
-							destinationComboBox.Items.Clear();
-							//destinationComboBox.Items.Clear();//already done above
-							Common.sParticiple="getting usable drives";
-							//alSelectableDrives=Common.SelectableDrives_DriveRootFullNameThenSlash_ToArrayList();
-							Common.sParticiple="showing usable drives";
-							int comboIndex=-1;
+						//alPseudoRootsNow=Common.PseudoRoots_DriveRootFullNameThenSlash_ToArrayList();
+						
+						destinationComboBox.BeginUpdate();
+						destinationComboBox.Items.Clear();
+						//destinationComboBox.Items.Clear();//already done above
+						Common.sParticiple="getting usable drives";
+						//alSelectableDrives=Common.SelectableDrives_DriveRootFullNameThenSlash_ToArrayList();
+						Common.sParticiple="showing usable drives";
+						int comboIndex=-1;
 //							foreach (string sNow in alSelectableDrives) {
 //								Output("Found potential backup drive "+sNow,true);
 //								destinationComboBox.Items.Add(Common.LocalFolderThenSlash(sNow) 
@@ -1910,15 +1902,15 @@ namespace ExpertMultimedia {
 //								comboIndex=destinationComboBox.Items.Count-1;
 //								
 //							}
-							int preferenceValueBest_ComboIndexNow=-1;
-							for (int driveIndex=0; driveIndex<Common.GetPseudoRoots_EntriesCount(); driveIndex++) {
-								LocInfo thisLocInfo=Common.GetPseudoRoot(driveIndex);
-								if (thisLocInfo!=null) {
-									//if (IsSelectableDrive(driveIndex)) {
-									if (Common.IsValidDest(thisLocInfo.VolumeLabel)&&Common.IsValidDest(thisLocInfo.DriveRoot_FullNameThenSlash)) {
-										long preferenceValue=getPreferenceLevelInPrefsFile(thisLocInfo);
-										bool IsWritable=setPreferenceLevelInPrefsFile(thisLocInfo, preferenceValue);
-										if (IsWritable) {
+						int preferenceValueBest_ComboIndexNow=-1;
+						for (int driveIndex=0; driveIndex<Common.GetPseudoRoots_EntriesCount(); driveIndex++) {
+							LocInfo thisLocInfo=Common.GetPseudoRoot(driveIndex);
+							if (thisLocInfo!=null) {
+								//if (IsSelectableDrive(driveIndex)) {
+								if (Common.IsValidDest(thisLocInfo.VolumeLabel)&&Common.IsValidDest(thisLocInfo.DriveRoot_FullNameThenSlash)) {
+									long preferenceValue=getPreferenceLevelInPrefsFile(thisLocInfo);
+									bool IsWritable=setPreferenceLevelInPrefsFile(thisLocInfo, preferenceValue);
+									if (IsWritable) {
 //											this was commented since it is illogical
 //											if (preferenceValue==preferenceValueBest_Value
 //											   		&&preferenceValue!=long.MinValue
@@ -1930,144 +1922,158 @@ namespace ExpertMultimedia {
 //												setPreferenceLevelInPrefsFile(thisLocInfo,preferenceValue);
 //											}
 //											else 
-											thisLocInfo.CustomLong=preferenceValue;
-											Output("Found potential backup drive "+thisLocInfo.ToDisplayString(),true);
-											destinationComboBox.Items.Add(thisLocInfo.ToDisplayString());
-											comboIndex=destinationComboBox.Items.Count-1;
-											if (preferenceValue>=preferenceValueBest_Value) {
-												preferenceValueBest_DriveIndex=driveIndex;
-												preferenceValueBest_Value=preferenceValue;
-												preferenceValueBest_ComboIndexNow=comboIndex;
-											}
-											Common.setPseudoRootCustomInt(driveIndex,comboIndex);
+										thisLocInfo.CustomLong=preferenceValue;
+										Output("Found potential backup drive "+thisLocInfo.ToDisplayString(),true);
+										destinationComboBox.Items.Add(thisLocInfo.ToDisplayString());
+										comboIndex=destinationComboBox.Items.Count-1;
+										if (preferenceValue>=preferenceValueBest_Value) {
+											preferenceValueBest_DriveIndex=driveIndex;
+											preferenceValueBest_Value=preferenceValue;
+											preferenceValueBest_ComboIndexNow=comboIndex;
 										}
-										else {
-											thisLocInfo.CustomLong=long.MinValue;
-											Output(thisLocInfo.ToDisplayString()+" is not writable");
-											Common.setPseudoRootCustomInt(driveIndex,-1);
-										}
+										Common.setPseudoRootCustomInt(driveIndex,comboIndex);
 									}
-									else Common.setPseudoRootCustomInt(driveIndex,-1);
+									else {
+										thisLocInfo.CustomLong=long.MinValue;
+										Output(thisLocInfo.ToDisplayString()+" is not writable");
+										Common.setPseudoRootCustomInt(driveIndex,-1);
+									}
 								}
-							}//for driveIndex
-							if (preferenceValueBest_InitiallyChosen_Index<0) {
-								preferenceValueBest_InitiallyChosen_Index=preferenceValueBest_DriveIndex;
+								else Common.setPseudoRootCustomInt(driveIndex,-1);
 							}
-							destinationComboBox.EndUpdate();
-							Application.DoEvents();
-							//if (destinationComboBox.Items.Count>=1) destinationComboBox.Select(destinationComboBox.Items.Count-1,1);
-							
-							//FolderLister.Echo("Test");
-							string sMsg="(unknown error while listing usable destinations in RunScriptLine)";
-							if (Common.GetPseudoRoots_CountNonNull(false) > 0) {//iSelectableDrives+iDestinations>0) {
-								//if (bExitIfNoUsableDrivesFound && Common.GetSelectableDrives_CountNonNull(false) == 0) {
-								if (bExitIfNoUsableDrivesFound && destinationComboBox.Items.Count == 0) {
-									sMsg = "No usable backup drives can be found.  Try connecting the drive and then try reopening this program.";
-									Console.Error.WriteLine(sMsg);
-									if (Common.bDebug) Console_Error_WriteLine_AllDebugInfo();
-									MessageBox.Show(sMsg);
-									//goButton.Enabled=false;
-									Application.Exit();
-								}
-								if (preferenceValueBest_ComboIndexNow>=0) destinationComboBox.SelectedIndex = preferenceValueBest_ComboIndexNow;
-								else destinationComboBox.SelectedIndex = destinationComboBox.Items.Count-1;
-							}
-							else {
-								sMsg= "No backup drive can be found.  Try connecting the drive and then try again.";
+						}//for driveIndex
+						if (preferenceValueBest_InitiallyChosen_Index<0) {
+							preferenceValueBest_InitiallyChosen_Index=preferenceValueBest_DriveIndex;
+						}
+						destinationComboBox.EndUpdate();
+						Application.DoEvents();
+						//if (destinationComboBox.Items.Count>=1) destinationComboBox.Select(destinationComboBox.Items.Count-1,1);
+						
+						//FolderLister.Echo("Test");
+						string sMsg="(unknown error while listing usable destinations in RunScriptLine)";
+						if (Common.GetPseudoRoots_CountNonNull(false) > 0) {//iSelectableDrives+iDestinations>0) {
+							//if (bExitIfNoUsableDrivesFound && Common.GetSelectableDrives_CountNonNull(false) == 0) {
+							if (bExitIfNoUsableDrivesFound && destinationComboBox.Items.Count == 0) {
+								sMsg = "No usable backup drives can be found.  Try connecting the drive and then try reopening this program.";
 								Console.Error.WriteLine(sMsg);
-								MessageBox.Show(sMsg);
 								if (Common.bDebug) Console_Error_WriteLine_AllDebugInfo();
+								MessageBox.Show(sMsg);
+								//goButton.Enabled=false;
+								Application.Exit();
 							}
-							this.profileLabel.Text="Profile: "+Environment.UserName+" on "+diProfileX.Name;
-							if (diProfileX.Name=="BackupGoNowDefault") {
-								this.profileLabel.Text+=" (only the current Windows user)";
-							}
-							BackupScriptFile_FullName=Path.Combine(BackupProfileFolder_FullName, BackupScriptFile_Name);
-							ShowOptions(optionsTableLayoutPanel,BackupScriptFile_FullName);
-							
-							thisProfileFolder_FullName=Path.Combine(profilesFolder_FullName,Environment.MachineName);
-							if (!Directory.Exists(thisProfileFolder_FullName)) {
-								Directory.CreateDirectory(thisProfileFolder_FullName);
-							}
-							//string CopyFileErrors="";
-							string thisDestFileFullName="";
-							Common.sParticiple="rewriting "+MainScriptFile_Name;
-							thisDestFileFullName=Path.Combine( thisProfileFolder_FullName , MainScriptFile_Name );
-							if (   !File.Exists(  thisDestFileFullName  )   ) {
-								tbStatus.Text="Copying profile...rewriting "+MainScriptFile_Name+"...";
-								Application.DoEvents();
-								
-								//if (MainScriptFile_FullName!=thisDestFileFullName) {
-								CopyFileWithoutComments(MainScriptFile_FullName, thisDestFileFullName, false  );
-								//}
-								MainScriptFile_FullName=thisDestFileFullName;
-							}
-							Common.sParticiple="continuing after rewriting "+thisDestFileFullName;
-							Common.sParticiple="rewriting "+BackupScriptFile_Name;
-							thisDestFileFullName=Path.Combine( thisProfileFolder_FullName , BackupScriptFile_Name );
-							if (  !File.Exists( thisDestFileFullName )  ) {
-								tbStatus.Text="Copying profile...rewriting "+BackupScriptFile_Name+"...";
-								Application.DoEvents();
-								//if (MainScriptFile_FullName!=thisDestFileFullName) {
-								CopyFileWithoutComments(BackupScriptFile_FullName, thisDestFileFullName, false   );
-								//}
-								BackupScriptFile_FullName=thisDestFileFullName;
-							}
-							Common.sParticiple="continuing after rewriting "+thisDestFileFullName;
-							//Common.sParticiple="before calling save options";
-							tbStatus.Text="Saving options...";
-							Application.DoEvents();
-							SaveOptions();
-							Common.sParticiple="continuing after SaveOptions";
-							tbStatus.Text="Saving options...OK";
-							Application.DoEvents();
-						}//end if profile folder exists
+							if (preferenceValueBest_ComboIndexNow>=0) destinationComboBox.SelectedIndex = preferenceValueBest_ComboIndexNow;
+							else destinationComboBox.SelectedIndex = destinationComboBox.Items.Count-1;
+						}
 						else {
-							Common.sParticiple="skipping profile folder since doesn't exist";
-							tbStatus.Text="Loading Profile...FAIL (missing folder)";
-							Application.DoEvents();
-							string sMsg="Unable to open profile \"" + sValue + "\"!";
+							sMsg= "No backup drive can be found.  Try connecting the drive and then try again.";
 							Console.Error.WriteLine(sMsg);
 							MessageBox.Show(sMsg);
+							if (Common.bDebug) Console_Error_WriteLine_AllDebugInfo();
 						}
-						Common.sParticiple="after LoadProfile";
-					}//end if (sCommandLower=="LoadProfile")
-					else if (sCommandLower=="ulbytecounttotalprocessed") {
-						ulByteCountTotalProcessed_LastRun=ulong.Parse(sValue);
-					}
-					else if (sCommandLower=="exitifnousabledrivesfound") {
-						bExitIfNoUsableDrivesFound=ToBool(sValue);
-					}
-					else if (sCommandLower=="recreatefullpathonbackup") {
-						this.recreateFullPathCheckBox.Checked = ToBool(sValue);
-					}
-					else if (sCommandLower=="alwaysstayopen") {
-						bAlwaysStayOpen=ToBool(sValue);
-					}
-					else if (sCommandLower=="testonly") {
-						bTestOnly=ToBool(sValue);
-						Output("Test mode turned "+(bTestOnly?"on":"off")+"."+(bTestOnly?"  No files will be copied.":""));
-					}
-					else if (sCommandLower=="destsubfolder") {
-						if (sValue.Trim()=="") {
-							DestSubfolderRelNameThenSlash=null;
-							LogWriteLine("DestSubfolderRelNameThenSlash:null");
+						this.profileLabel.Text="Profile: "+Environment.UserName+" on "+diProfileX.Name;
+						if (diProfileX.Name=="BackupGoNowDefault") {
+							this.profileLabel.Text+=" (only the current Windows user)";
 						}
-						else {
-							DestSubfolderRelNameThenSlash=Common.LocalFolderThenSlash(sValue.Trim());
-							LogWriteLine("DestSubfolderRelNameThenSlash:"+DestSubfolderRelNameThenSlash);
+						BackupScriptFile_FullName=Path.Combine(BackupProfileFolder_FullName, BackupScriptFile_Name);
+						ShowOptions(optionsTableLayoutPanel,BackupScriptFile_FullName);
+						
+						thisProfileFolder_FullName=Path.Combine(profilesFolder_FullName,Environment.MachineName);
+						if (!Directory.Exists(thisProfileFolder_FullName)) {
+							Directory.CreateDirectory(thisProfileFolder_FullName);
 						}
-					}
-					//TODO: else if (sCommandLower=="minimumdate") {
-					//	Common.SetMinimumDateToCheckFolder(sValue);
-					//}
+						//string CopyFileErrors="";
+						string thisDestFileFullName="";
+						Common.sParticiple="rewriting "+MainScriptFile_Name;
+						thisDestFileFullName=Path.Combine( thisProfileFolder_FullName , MainScriptFile_Name );
+						if (   !File.Exists(  thisDestFileFullName  )   ) {
+							tbStatus.Text="Copying profile...rewriting "+MainScriptFile_Name+"...";
+							Application.DoEvents();
+							
+							//if (MainScriptFile_FullName!=thisDestFileFullName) {
+							CopyFileWithoutComments(MainScriptFile_FullName, thisDestFileFullName, false  );
+							//}
+							MainScriptFile_FullName=thisDestFileFullName;
+						}
+						Common.sParticiple="continuing after rewriting "+thisDestFileFullName;
+						Common.sParticiple="rewriting "+BackupScriptFile_Name;
+						thisDestFileFullName=Path.Combine( thisProfileFolder_FullName , BackupScriptFile_Name );
+						if (  !File.Exists( thisDestFileFullName )  ) {
+							tbStatus.Text="Copying profile...rewriting "+BackupScriptFile_Name+"...";
+							Application.DoEvents();
+							//if (MainScriptFile_FullName!=thisDestFileFullName) {
+							CopyFileWithoutComments(BackupScriptFile_FullName, thisDestFileFullName, false   );
+							//}
+							BackupScriptFile_FullName=thisDestFileFullName;
+						}
+						Common.sParticiple="continuing after rewriting "+thisDestFileFullName;
+						//Common.sParticiple="before calling save options";
+						tbStatus.Text="Saving options...";
+						Application.DoEvents();
+						SaveOptions();
+						Common.sParticiple="continuing after SaveOptions";
+						tbStatus.Text="Saving options...OK";
+						Application.DoEvents();
+					}//end if profile folder exists
 					else {
-						Console.Error.WriteLine("Unknown Command!: "+sCommandLower+":"+sValue);
-						bForceBad=true;
+						Common.sParticiple="skipping profile folder since doesn't exist";
+						tbStatus.Text="Loading Profile...FAIL (missing folder)";
+						Application.DoEvents();
+						string sMsg="Unable to open profile \"" + sValue + "\"!";
+						Console.Error.WriteLine(sMsg);
+						MessageBox.Show(sMsg);
 					}
-					bGood=true;
-					if (bForceBad) bGood=false;
-				}//end if has ":" in right place
+					Common.sParticiple="after LoadProfile";
+				}//end if (sCommandLower=="LoadProfile")
+				else if (sCommandLower=="ulbytecounttotalprocessed") {
+					ulByteCountTotalProcessed_LastRun=ulong.Parse(sValue);
+				}
+				else if (sCommandLower=="exitifnousabledrivesfound") {
+					bExitIfNoUsableDrivesFound=ToBool(sValue);
+				}
+				else if (sCommandLower=="recreatefullpathonbackup") {
+					this.recreateFullPathCheckBox.Checked = ToBool(sValue);
+				}
+				else if (sCommandLower=="alwaysstayopen") {
+					bAlwaysStayOpen=ToBool(sValue);
+				}
+				else if (sCommandLower=="testonly") {
+					bTestOnly=ToBool(sValue);
+					Output("Test mode turned "+(bTestOnly?"on":"off")+"."+(bTestOnly?"  No files will be copied.":""));
+				}
+				else if (sCommandLower=="destsubfolder") {
+					if (sValue.Trim()=="") {
+						DestSubfolderRelNameThenSlash=null;
+						LogWriteLine("DestSubfolderRelNameThenSlash:null");
+					}
+					else {
+						DestSubfolderRelNameThenSlash=Common.LocalFolderThenSlash(sValue.Trim());
+						LogWriteLine("DestSubfolderRelNameThenSlash:"+DestSubfolderRelNameThenSlash);
+					}
+				}
+				//TODO: else if (sCommandLower=="minimumdate") {
+				//	Common.SetMinimumDateToCheckFolder(sValue);
+				//}
+				else {
+					Console.Error.WriteLine("Unknown Command!: "+sCommandLower+":"+sValue);
+					bForceBad=true;
+				}
+				bGood=true;
+				if (bForceBad) bGood=false;
+			}//end if has ":" in right place
+			return bGood;
+		}
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="sLine"></param>
+		/// <param name="sFile">For debugging purposes</param>
+		/// <param name="iLine">For debugging purposes</param>
+		/// <returns></returns>
+		public bool RunScriptLine(string sLine, bool enableRecreateFullPath, string sFile, int lineNumber) {
+			bool bForceBad=false;
+			bool bGood=false;
+			try {
+				bGood = this._RunScriptLine(sLine, enableRecreateFullPath, sFile, lineNumber);
 			}
 			catch (Exception exn) {
 				Common.ShowExn(exn,"parsing line "+Common.SafeString(sLine,true)+" {iLine+1:"+(iLine+1).ToString()+"; status:"+tbStatus.Text+"}");
@@ -2881,122 +2887,121 @@ namespace ExpertMultimedia {
 		/// <param name="e"></param>
 		void StartupTimerTick(object sender, EventArgs e)
 		{
-			if (!IsStartupStarted) {
-				if (!File.Exists(StartupFile_FullName)) {
-					writeDefault_StartupScript(StartupFile_FullName);
+			if (IsStartupStarted) {
+				Console.Error.WriteLine("Warning: skipping startup since already started (startup timer ticked again).");
+				return;
+			}
+			if (!File.Exists(StartupFile_FullName)) {
+				writeDefault_StartupScript(StartupFile_FullName);
+			}
+			thisProfileFolder_FullName=Path.Combine(profilesFolder_FullName,"BackupGoNowDefault");
+			if (!Directory.Exists(thisProfileFolder_FullName)) {
+				Directory.CreateDirectory(thisProfileFolder_FullName);
+			}
+			MainScriptFile_FullName=Path.Combine(thisProfileFolder_FullName,MainScriptFile_Name);
+			if (!File.Exists(MainScriptFile_FullName)) {
+				writeDefault_MainScript(MainScriptFile_FullName);
+			}
+			BackupScriptFile_FullName=Path.Combine(thisProfileFolder_FullName,BackupScriptFile_Name);
+			if (!File.Exists(BackupScriptFile_FullName)) {
+				writeDefault_BackupScript(BackupScriptFile_FullName);
+			}
+			
+			Console.Error.WriteLine("Timed startup is about to open " + Common.SafeString(StartupFile_FullName,true));
+			DateTime dtNow=DateTime.Now;
+			lbOutNow.Items.Add(dtNow.Year+"-"+dtNow.Month+"-"+dtNow.Day+" "+dtNow.Hour+":"+dtNow.Minute);
+			IsStartupStarted=true;
+			optionsHelpLabel.Visible=false;
+			startupTimer.Stop();
+			string sMsg="";
+			tbStatus.Text="Running startup script (please wait)...";
+			Application.DoEvents();
+			RunScript(StartupFile_FullName, recreateFullPathCheckBox.Checked);
+			this.profileLabel.Visible=true;
+			Console.Error.WriteLine("Finished " + Common.SafeString(StartupScriptFile_Name,true)+" in MainFormLoad");
+			bFoundLoadProfile=false;
+			bSuccessFullyResetStartup=false;
+			sMsg="Attempting to get path of current user's Documents...";
+			tbStatus.Text=sMsg;
+			Application.DoEvents();
+			OutputFile_FullName=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),OutputFile_Name);
+			sMsg="Welcome to "+sMyName+"!";
+			tbStatus.Text=sMsg;
+			try {
+				if (!File.Exists(LastRunLog_FullName)) {
+					menuitemHelp_ViewOutputOfLastRun.Enabled=false;
 				}
-				thisProfileFolder_FullName=Path.Combine(profilesFolder_FullName,"BackupGoNowDefault");
-				if (!Directory.Exists(thisProfileFolder_FullName)) {
-					Directory.CreateDirectory(thisProfileFolder_FullName);
-				}
-				MainScriptFile_FullName=Path.Combine(thisProfileFolder_FullName,MainScriptFile_Name);
-				if (!File.Exists(MainScriptFile_FullName)) {
-					writeDefault_MainScript(MainScriptFile_FullName);
-				}
-				BackupScriptFile_FullName=Path.Combine(thisProfileFolder_FullName,BackupScriptFile_Name);
-				if (!File.Exists(BackupScriptFile_FullName)) {
-					writeDefault_BackupScript(BackupScriptFile_FullName);
-				}
-				
-				Console.Error.WriteLine("Timed startup is about to open " + Common.SafeString(StartupFile_FullName,true));
-				DateTime dtNow=DateTime.Now;
-				lbOutNow.Items.Add(dtNow.Year+"-"+dtNow.Month+"-"+dtNow.Day+" "+dtNow.Hour+":"+dtNow.Minute);
-				IsStartupStarted=true;
-				optionsHelpLabel.Visible=false;
-				startupTimer.Stop();
-				string sMsg="";
-				tbStatus.Text="Running startup script (please wait)...";
-				Application.DoEvents();
-				RunScript(StartupFile_FullName, recreateFullPathCheckBox.Checked);
-				this.profileLabel.Visible=true;
-				Console.Error.WriteLine("Finished " + Common.SafeString(StartupScriptFile_Name,true)+" in MainFormLoad");
-				bFoundLoadProfile=false;
-				bSuccessFullyResetStartup=false;
-				sMsg="Attempting to get path of current user's Documents...";
-				tbStatus.Text=sMsg;
-				Application.DoEvents();
-				OutputFile_FullName=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),OutputFile_Name);
-				sMsg="Welcome to "+sMyName+"!";
-				tbStatus.Text=sMsg;
+			}
+			catch {}
+			
+			
+			if (!bLoadedProfile) {  //TODO: deprecate this case
+				Console.Error.WriteLine(Common.SafeString(StartupScriptFile_Name,true)+" did not load a profile so loading default (\""+DefaultProfile_Name+"\")");
+				bool bTest=RunScriptLine("LoadProfile:"+DefaultProfile_Name, recreateFullPathCheckBox.Checked, "<automation in StartupTimerTick>", -1);
+				Console.Error.WriteLine("Loaded Profile \""+DefaultProfile_Name+"\"..."+(bTest?"OK":"FAILED!"));
+				string sAllData="";
 				try {
-					if (!File.Exists(LastRunLog_FullName)) {
-						menuitemHelp_ViewOutputOfLastRun.Enabled=false;
-					}
-				}
-				catch {}
-				
-				
-				if (!bLoadedProfile) {  //TODO: deprecate this case
-					Console.Error.WriteLine(Common.SafeString(StartupScriptFile_Name,true)+" did not load a profile so loading default (\""+DefaultProfile_Name+"\")");
-					bool bTest=RunScriptLine("LoadProfile:"+DefaultProfile_Name, recreateFullPathCheckBox.Checked, "<automation in StartupTimerTick>", -1);
-					Console.Error.WriteLine("Loaded Profile \""+DefaultProfile_Name+"\"..."+(bTest?"OK":"FAILED!"));
-					string sAllData="";
+					sMsg="Attempting to edit "+Common.SafeString(StartupScriptFile_Name,true)+" and add \"LoadProFile:"+DefaultProfile_Name+"\" if no valid LoadProfile statement is found...";
+					tbStatus.Text=sMsg;
+					Application.DoEvents();
+					Console.Error.Write(sMsg);
+					Console.Error.Flush();
+					Console.Error.Write("reading data...");
+					Console.Error.Flush();
 					try {
-						sMsg="Attempting to edit "+Common.SafeString(StartupScriptFile_Name,true)+" and add \"LoadProFile:"+DefaultProfile_Name+"\" if no valid LoadProfile statement is found...";
-						tbStatus.Text=sMsg;
-						Application.DoEvents();
-						Console.Error.Write(sMsg);
-						Console.Error.Flush();
-						Console.Error.Write("reading data...");
-						Console.Error.Flush();
-						try {
-							if (File.Exists(StartupScriptFile_Name)) {
-								StreamReader streamIn=new StreamReader(StartupScriptFile_Name);
-								string sLine;
-								while ( (sLine=streamIn.ReadLine()) != null ) {
-									while (sLine.EndsWith("\n")||sLine.EndsWith("\r")) {
-										if (sLine=="\n"||sLine=="\r") {sLine=""; break;}
-										else sLine=sLine.Substring(0,sLine.Length-1);
-									}
-									while (sLine.StartsWith("\n")||sLine.StartsWith("\r")) {
-										if (sLine=="\n"||sLine=="\r") {sLine=""; break;}
-										else sLine=sLine.Substring(1);
-									}
-									while (sLine.StartsWith(" ")) {
-										if (sLine==" ") {sLine=""; break;}
-										else sLine=sLine.Substring(1);
-									}
-									if (sLine.ToLower().StartsWith("loadprofile:")&&sLine.ToLower()!="loadprofile:") bFoundLoadProfile=true;
-									else sAllData+=sLine+Environment.NewLine;
+						if (File.Exists(StartupScriptFile_Name)) {
+							StreamReader streamIn=new StreamReader(StartupScriptFile_Name);
+							string sLine;
+							while ( (sLine=streamIn.ReadLine()) != null ) {
+								while (sLine.EndsWith("\n")||sLine.EndsWith("\r")) {
+									if (sLine=="\n"||sLine=="\r") {sLine=""; break;}
+									else sLine=sLine.Substring(0,sLine.Length-1);
 								}
-								streamIn.Close();
+								while (sLine.StartsWith("\n")||sLine.StartsWith("\r")) {
+									if (sLine=="\n"||sLine=="\r") {sLine=""; break;}
+									else sLine=sLine.Substring(1);
+								}
+								while (sLine.StartsWith(" ")) {
+									if (sLine==" ") {sLine=""; break;}
+									else sLine=sLine.Substring(1);
+								}
+								if (sLine.ToLower().StartsWith("loadprofile:")&&sLine.ToLower()!="loadprofile:") bFoundLoadProfile=true;
+								else sAllData+=sLine+Environment.NewLine;
 							}
+							streamIn.Close();
 						}
-						catch (Exception exn) {
-							Common.ShowExn(exn,"reading "+Common.SafeString(StartupScriptFile_Name,true));
-						}
-						Console.Error.Write("writing data...");
-						Console.Error.Flush();
-						//System.Threading.Thread.Sleep(100);//wait for file to be ready (is this ever needed???)
-						StreamWriter outStream=new StreamWriter(StartupScriptFile_Name);
-						outStream.WriteLine(sAllData);
-						outStream.WriteLine("LoadProfile:"+DefaultProfile_Name);
-						outStream.Close();
-						Console.Error.WriteLine("OK.");
-						bSuccessFullyResetStartup=true;
 					}
 					catch (Exception exn) {
-						Common.ShowExn(exn,"creating "+Common.SafeString(StartupScriptFile_Name,true),"MainFormLoad");
+						Common.ShowExn(exn,"reading "+Common.SafeString(StartupScriptFile_Name,true));
 					}
-					//System.Threading.Thread.Sleep(500);
-					tbStatus.Text="Done checking startup {bLoadedProfile:"+(bLoadedProfile?"yes":"no")+"; bFoundLoadProfile:"+(bFoundLoadProfile?"yes":"no")+"; bSuccessFullyResetStartup:"+(bSuccessFullyResetStartup?"yes":"no")+"}.";
-				}//end if !bLoadedProfile
-				//alPseudoRootsNow=Common.PseudoRoots_DriveRootFullNameThenSlash_ToArrayList();
-				//alSelectableDrives=Common.SelectableDrives_DriveRootFullNameThenSlash_ToArrayList();
-				if (Common.GetPseudoRoots_EntriesCount()>0) {//if (alPseudoRootsNow!=null && alPseudoRootsNow.Count>0) {
-					if (bExitIfNoUsableDrivesFound&&(Common.GetSelectableDriveMsg_EntriesCount()<=0) && !bAlwaysStayOpen) //if (bExitIfNoUsableDrivesFound&&(alSelectableDrives==null||alSelectableDrives.Count==0) && !bAlwaysStayOpen)
-						Application.Exit();
+					Console.Error.Write("writing data...");
+					Console.Error.Flush();
+					//System.Threading.Thread.Sleep(100);//wait for file to be ready (is this ever needed???)
+					StreamWriter outStream=new StreamWriter(StartupScriptFile_Name);
+					outStream.WriteLine(sAllData);
+					outStream.WriteLine("LoadProfile:"+DefaultProfile_Name);
+					outStream.Close();
+					Console.Error.WriteLine("OK.");
+					bSuccessFullyResetStartup=true;
 				}
-				else if (!bTestOnly&&!bAlwaysStayOpen)
+				catch (Exception exn) {
+					Common.ShowExn(exn,"creating "+Common.SafeString(StartupScriptFile_Name,true),"MainFormLoad");
+				}
+				//System.Threading.Thread.Sleep(500);
+				tbStatus.Text="Done checking startup {bLoadedProfile:"+(bLoadedProfile?"yes":"no")+"; bFoundLoadProfile:"+(bFoundLoadProfile?"yes":"no")+"; bSuccessFullyResetStartup:"+(bSuccessFullyResetStartup?"yes":"no")+"}.";
+			}//end if !bLoadedProfile
+			//alPseudoRootsNow=Common.PseudoRoots_DriveRootFullNameThenSlash_ToArrayList();
+			//alSelectableDrives=Common.SelectableDrives_DriveRootFullNameThenSlash_ToArrayList();
+			if (Common.GetPseudoRoots_EntriesCount()>0) {//if (alPseudoRootsNow!=null && alPseudoRootsNow.Count>0) {
+				if (bExitIfNoUsableDrivesFound&&(Common.GetSelectableDriveMsg_EntriesCount()<=0) && !bAlwaysStayOpen) //if (bExitIfNoUsableDrivesFound&&(alSelectableDrives==null||alSelectableDrives.Count==0) && !bAlwaysStayOpen)
 					Application.Exit();
-				
-				CalculateMargins();
-				UpdateSize();
-				optionsHelpLabel.Visible=true;
-			}//end if !IsStartupStarted
-			else {
-				Console.Error.WriteLine("Oops, skipping startup since already started (startup timer ticked again).");
 			}
+			else if (!bTestOnly&&!bAlwaysStayOpen)
+				Application.Exit();
+			
+			CalculateMargins();
+			UpdateSize();
+			optionsHelpLabel.Visible=true;
 		}//end StartupTimerTick 
 		
 		public void SaveOptions() {
