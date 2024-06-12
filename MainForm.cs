@@ -20,6 +20,7 @@ using System.Security.Principal;
 //using System.Management;//for getting free disk space (ManagementObject)
 //using System.Text;//StringBuilder etc
 using System.Diagnostics; //StackTrace etc
+using System.Threading;
 
 namespace ExpertMultimedia {
 	/// <summary>
@@ -151,6 +152,15 @@ namespace ExpertMultimedia {
 		//	}
 		//	return "";
 		//}
+		
+		/// <summary>
+		/// Format milliseconds as a seconds string.
+		/// </summary>
+		/// <param name="ms">Milliseconds</param>
+		/// <returns>Seconds string, rounded to 3 places.</returns>
+		public static string msss(long ms) {
+			return (Math.Round((decimal)ms/1000, 3)).ToString();
+		}
 		void LogWriteLine(string line) {
 			//NOTE: this.lbOut.Items.Add gets saved to last run log later.
 			this.lbOut.Items.Add(line);
@@ -560,9 +570,16 @@ namespace ExpertMultimedia {
 				+ Common.sDirSep;
 			
 		}
-		bool RunScript(string sFileX, bool enableRecreateFullPath) {
+		bool RunScript(string sFileX, bool enableRecreateFullPath, long timeoutMS) {
+			System.Diagnostics.Stopwatch watch = new System.Diagnostics.Stopwatch();
+			watch.Start();
 			sShowError="";
 			scriptFileNameStack.Push(sFileX);
+			if (watch.ElapsedMilliseconds > timeoutMS) {
+				Debug.WriteLine("Warning: " + msss(watch.ElapsedMilliseconds)
+				                + "s passed before clearing errors " + sFileX);
+			}
+			
 			if (alSkippedDueToException!=null||alCopyError!=null) { //TODO: recheck logic.  This used to be done below (see identical commented lines)
 				if (alSkippedDueToException.Count!=0||alCopyError.Count>0) {
 					Output("Clearing error cache...",true);
@@ -577,15 +594,25 @@ namespace ExpertMultimedia {
 			bool bGood=false;
 			StreamReader streamIn=null;
 			iCouldNotFinish=0;
+			if (watch.ElapsedMilliseconds > timeoutMS) {
+				Debug.WriteLine("Warning: " + msss(watch.ElapsedMilliseconds)
+				                + "s passed before clearing skip list before " + sFileX);
+			}
 			try {
 				if (alSkippedDueToException!=null) alSkippedDueToException.Clear();
 				else alSkippedDueToException=new ArrayList();
+				
 				if (!File.Exists(sFileX)) {
 					Console.Error.WriteLine("File does not exist: \"" + sFileX + "\"!");
 				}
 				else {
 					Console.Error.WriteLine("Reading \"" + sFileX + "\":");
 				}
+				if (watch.ElapsedMilliseconds > timeoutMS) {
+					Debug.WriteLine("Warning: " + msss(watch.ElapsedMilliseconds)
+					                + "s passed before opening" + sFileX);
+				}
+
 				streamIn=new StreamReader(sFileX);
 				string sLine;
 				//flisterNow=new FolderLister();
@@ -593,6 +620,12 @@ namespace ExpertMultimedia {
 				//flisterNow.bShowFolders=true;
 				iLine=0;
 				iListedLines=0;
+
+				if (watch.ElapsedMilliseconds > timeoutMS) {
+					Debug.WriteLine("Warning: " + msss(watch.ElapsedMilliseconds)
+					                + "s passed before reading" + sFileX);
+				}
+				
 				while ( (sLine=streamIn.ReadLine()) != null ) {
 					if (bUserCancelledLastRun) {
 						bUserCancelledLastRun=true;
@@ -600,8 +633,15 @@ namespace ExpertMultimedia {
 					}
 					if (sLine.StartsWith("#")) Console.Error.WriteLine("\t"+sLine);
 					else iNonCommentLines++;
-					RunScriptLine(sLine, enableRecreateFullPath, sFileX, iLine+1);
+					RunScriptLine(sLine, enableRecreateFullPath, sFileX, iLine+1, timeoutMS);
+					// NOTE: timeoutMS is used as a *per-line* timeout above with its own Stopwatch.
 					iLine++;
+					Debug.WriteLine(sFileX+", line "+iLine.ToString()+": "+sLine);
+					if (watch.ElapsedMilliseconds > timeoutMS) {
+						Debug.WriteLine("Warning: " + msss(watch.ElapsedMilliseconds)
+						                + "s for line " + iLine.ToString() + " of " + sFileX + ": "+sLine);
+					}
+					
 					if (bDiskFullLastRun||bUserCancelledLastRun) break; //do NOT stop if Copy Error only
 				}//end while lines in script
 				//if (bTestOnly) {
@@ -704,6 +744,13 @@ namespace ExpertMultimedia {
 				RemoveTrivialMessages();
 			}
 			scriptFileNameStack.Pop();
+			watch.Stop();
+			if (watch.ElapsedMilliseconds > timeoutMS) {
+				Debug.WriteLine("Warning: "+msss(watch.ElapsedMilliseconds)+"s for "+sFileX);
+			}
+			else {
+				Debug.WriteLine("Info: "+msss(watch.ElapsedMilliseconds)+"s for "+sFileX);
+			}
 			return bGood;
 		}//end RunScript
 		public static string ToString(Stack thisStringStack, string delimiter) {
@@ -1638,7 +1685,9 @@ namespace ExpertMultimedia {
 			}
 			return sValue;
 		}
-		private bool _RunScriptLine(string sLine, bool enableRecreateFullPath, string sFile, int lineNumber) {
+		private bool _RunScriptLine(string sLine, bool enableRecreateFullPath, string sFile, int lineNumber, long timeoutMS) {
+			System.Diagnostics.Stopwatch watch = new System.Diagnostics.Stopwatch();
+			watch.Start();
 			bool bForceBad=false;
 			bool bGood=false;
 			Common.RemoveEndsWhiteSpaceByRef(ref sLine);
@@ -1775,12 +1824,12 @@ namespace ExpertMultimedia {
 							foreach (string sFolderTheoretical in alFoldersTheoretical) {
 								if (!sFolderTheoretical.Contains(Common.SlashWildSlash)) {
 									if (!Common.IsExcludedFolder(new DirectoryInfo(sFolderTheoretical))) { //if (!Common.IsExcludedFolder(new DirectoryInfo(sFolderTheoretical),true,true,false)) {
-										RunScriptLine("AddFolder:"+sFolderTheoretical, enableRecreateFullPath, "<wildcard in "+((sFile!=null)?sFile:"null")+">", lineNumber);
+										RunScriptLine("AddFolder:"+sFolderTheoretical, enableRecreateFullPath, "<wildcard in "+((sFile!=null)?sFile:"null")+">", lineNumber, -1);
 										iNonExcludable++;
 									}
 								}
 								else {
-									RunScriptLine("AddFolder:"+sFolderTheoretical, enableRecreateFullPath, "<wildcard in "+((sFile!=null)?sFile:"null")+">", lineNumber);
+									RunScriptLine("AddFolder:"+sFolderTheoretical, enableRecreateFullPath, "<wildcard in "+((sFile!=null)?sFile:"null")+">", lineNumber, -1);
 									iWildcardsAdded++;
 								}
 							}
@@ -1847,8 +1896,8 @@ namespace ExpertMultimedia {
 				}//end if sCommandLower==addfolder
 				else if (sCommandLower=="loadprofile") {
 					Common.sParticiple="setting DestSubFolder";
-					RunScriptLine("DestSubFolder:Backup-"+Environment.MachineName, enableRecreateFullPath, "<loadprofile automation>", -1);  // ok since happens before main.ini
-					RunScriptLine("RecreateFullPathOnBackup:on", enableRecreateFullPath, "<loadprofile automation>", -1);  // ok since happens before main.ini
+					RunScriptLine("DestSubFolder:Backup-"+Environment.MachineName, enableRecreateFullPath, "<loadprofile automation>", -1, 10);  // ok since happens before main.ini
+					RunScriptLine("RecreateFullPathOnBackup:on", enableRecreateFullPath, "<loadprofile automation>", -1, 10);  // ok since happens before main.ini
 					Common.iDebugLevel=Common.DebugLevel_Mega;//debug only
 					this.menuitemEditScript.Enabled=false;
 					this.menuitemEditMain.Enabled=false;
@@ -1877,9 +1926,9 @@ namespace ExpertMultimedia {
 						Common.ClearExtraDestinations();
 						string MainScriptFile_FullName=Path.Combine(BackupProfileFolder_FullName,MainScriptFile_Name);
 						//string ProfileFolder_FullName;
-						RunScript(MainScriptFile_FullName, recreateFullPathCheckBox.Checked); //excludes and adds destinations
+						RunScript(MainScriptFile_FullName, recreateFullPathCheckBox.Checked, 1000); //excludes and adds destinations
 						
-						if (File.Exists( Path.Combine(BackupProfileFolder_FullName, LogFile_Name) )) RunScript(BackupProfileFolder_FullName + Common.sDirSep + LogFile_Name, recreateFullPathCheckBox.Checked); //excludes and adds destinations
+						if (File.Exists( Path.Combine(BackupProfileFolder_FullName, LogFile_Name) )) RunScript(BackupProfileFolder_FullName + Common.sDirSep + LogFile_Name, recreateFullPathCheckBox.Checked, 1000); //excludes and adds destinations
 						bLoadedProfile=true;
 						Common.UpdateSelectableDrivesAndPseudoRoots(true);
 						Common.sParticiple="finished updating Drives and PseudoRoots";
@@ -1903,6 +1952,10 @@ namespace ExpertMultimedia {
 //								
 //							}
 						int preferenceValueBest_ComboIndexNow=-1;
+						if (timeoutMS > 0 && watch.ElapsedMilliseconds > timeoutMS) {
+							Debug.WriteLine("Warning: \""+sLine+"\" before iterating drives took "+msss(watch.ElapsedMilliseconds)+"s");
+						}
+						
 						for (int driveIndex=0; driveIndex<Common.GetPseudoRoots_EntriesCount(); driveIndex++) {
 							LocInfo thisLocInfo=Common.GetPseudoRoot(driveIndex);
 							if (thisLocInfo!=null) {
@@ -1942,10 +1995,18 @@ namespace ExpertMultimedia {
 								else Common.setPseudoRootCustomInt(driveIndex,-1);
 							}
 						}//for driveIndex
+						if (timeoutMS > 0 && watch.ElapsedMilliseconds > timeoutMS) {
+							Debug.WriteLine("Warning: \""+sLine+"\" iterating drives took "+msss(watch.ElapsedMilliseconds)+"s");
+						}
+						
 						if (preferenceValueBest_InitiallyChosen_Index<0) {
 							preferenceValueBest_InitiallyChosen_Index=preferenceValueBest_DriveIndex;
 						}
 						destinationComboBox.EndUpdate();
+						if (timeoutMS > 0 && watch.ElapsedMilliseconds > timeoutMS) {
+							Debug.WriteLine("Warning: \""+sLine+"\" finalizing drive dropdown took "+msss(watch.ElapsedMilliseconds)+"s");
+						}
+						
 						Application.DoEvents();
 						//if (destinationComboBox.Items.Count>=1) destinationComboBox.Select(destinationComboBox.Items.Count-1,1);
 						
@@ -1968,14 +2029,39 @@ namespace ExpertMultimedia {
 							sMsg= "No backup drive can be found.  Try connecting the drive and then try again.";
 							Console.Error.WriteLine(sMsg);
 							MessageBox.Show(sMsg);
+							/*
+							Doing it asynchronously would prevent retry if drive inserted before clicking.
+							new Thread(new ThreadStart(delegate
+						    {
+						      MessageBox.Show
+						      (
+						        sMsg, 
+						        "",
+						        MessageBoxButtons.OK,
+						        MessageBoxIcon.Warning
+						      );
+						    })).Start();
+
+							 */
 							if (Common.bDebug) Console_Error_WriteLine_AllDebugInfo();
 						}
+						if (timeoutMS > 0 && watch.ElapsedMilliseconds > timeoutMS) {
+							Debug.WriteLine("Warning: \""+sLine+"\" after GetPseudoRoots_CountNonNull took "+msss(watch.ElapsedMilliseconds)+"s");
+						}
+						
 						this.profileLabel.Text="Profile: "+Environment.UserName+" on "+diProfileX.Name;
 						if (diProfileX.Name=="BackupGoNowDefault") {
 							this.profileLabel.Text+=" (only the current Windows user)";
 						}
 						BackupScriptFile_FullName=Path.Combine(BackupProfileFolder_FullName, BackupScriptFile_Name);
+						if (timeoutMS > 0 && watch.ElapsedMilliseconds > timeoutMS) {
+							Debug.WriteLine("Warning: \""+sLine+"\" before ShowOptions took "+msss(watch.ElapsedMilliseconds)+"s");
+						}
+
 						ShowOptions(optionsTableLayoutPanel,BackupScriptFile_FullName);
+						if (timeoutMS > 0 && watch.ElapsedMilliseconds > timeoutMS) {
+							Debug.WriteLine("Warning: \""+sLine+"\" after ShowOptions took "+msss(watch.ElapsedMilliseconds)+"s");
+						}
 						
 						thisProfileFolder_FullName=Path.Combine(profilesFolder_FullName,Environment.MachineName);
 						if (!Directory.Exists(thisProfileFolder_FullName)) {
@@ -2005,11 +2091,23 @@ namespace ExpertMultimedia {
 							//}
 							BackupScriptFile_FullName=thisDestFileFullName;
 						}
+						if (timeoutMS > 0 && watch.ElapsedMilliseconds > timeoutMS) {
+							Debug.WriteLine("Warning: \""+sLine+"\" after checking for unsaved generated profiles took "+msss(watch.ElapsedMilliseconds)+"s");
+						}
+						
 						Common.sParticiple="continuing after rewriting "+thisDestFileFullName;
 						//Common.sParticiple="before calling save options";
 						tbStatus.Text="Saving options...";
 						Application.DoEvents();
+						if (timeoutMS > 0 && watch.ElapsedMilliseconds > timeoutMS) {
+							Debug.WriteLine("Warning: \""+sLine+"\" after DoEvents took "+msss(watch.ElapsedMilliseconds)+"s");
+						}
+						
 						SaveOptions();
+						if (timeoutMS > 0 && watch.ElapsedMilliseconds > timeoutMS) {
+							Debug.WriteLine("Warning: \""+sLine+"\" after SaveOptions took "+msss(watch.ElapsedMilliseconds)+"s");
+						}
+						
 						Common.sParticiple="continuing after SaveOptions";
 						tbStatus.Text="Saving options...OK";
 						Application.DoEvents();
@@ -2060,6 +2158,9 @@ namespace ExpertMultimedia {
 				bGood=true;
 				if (bForceBad) bGood=false;
 			}//end if has ":" in right place
+			if (timeoutMS > 0 && watch.ElapsedMilliseconds > timeoutMS) {
+				Debug.WriteLine("Warning: \""+sLine+"\" took "+msss(watch.ElapsedMilliseconds)+"s");
+			}
 			return bGood;
 		}
 		/// <summary>
@@ -2069,11 +2170,11 @@ namespace ExpertMultimedia {
 		/// <param name="sFile">For debugging purposes</param>
 		/// <param name="iLine">For debugging purposes</param>
 		/// <returns></returns>
-		public bool RunScriptLine(string sLine, bool enableRecreateFullPath, string sFile, int lineNumber) {
+		public bool RunScriptLine(string sLine, bool enableRecreateFullPath, string sFile, int lineNumber, long timeoutMS) {
 			bool bForceBad=false;
 			bool bGood=false;
 			try {
-				bGood = this._RunScriptLine(sLine, enableRecreateFullPath, sFile, lineNumber);
+				bGood = this._RunScriptLine(sLine, enableRecreateFullPath, sFile, lineNumber, timeoutMS);
 			}
 			catch (Exception exn) {
 				Common.ShowExn(exn,"parsing line "+Common.SafeString(sLine,true)+" {iLine+1:"+(iLine+1).ToString()+"; status:"+tbStatus.Text+"}");
@@ -2095,6 +2196,7 @@ namespace ExpertMultimedia {
 //				}
 				//Control lastRow = thisTableLayoutPanel.Controls[thisTableLayoutPanel.RowCount-1];
 				thisTableLayoutPanel.GrowStyle = TableLayoutPanelGrowStyle.AddRows;
+				thisTableLayoutPanel.SuspendLayout();  // Saves ~ 15 seconds!
 				thisTableLayoutPanel.Controls.Clear();
 				thisTableLayoutPanel.RowCount = 0;
 				string line=null;
@@ -2181,6 +2283,7 @@ namespace ExpertMultimedia {
 				Output(msg,true);
 			}
 			finally {
+				thisTableLayoutPanel.ResumeLayout();
 				thisTableLayoutPanel.Show();
 			}
 		}//end ShowOptions
@@ -2711,7 +2814,7 @@ namespace ExpertMultimedia {
 				else {
 					mainformNow.progressbarMain.Style=ProgressBarStyle.Marquee;
 				}
-				if (!RunScript(Path.Combine(MainForm.BackupProfileFolder_FullName,BackupScriptFile_Name), recreateFullPathCheckBox.Checked)) bGood=false;
+				if (!RunScript(Path.Combine(MainForm.BackupProfileFolder_FullName,BackupScriptFile_Name), recreateFullPathCheckBox.Checked, -1)) bGood=false;
 				if (mainformNow.progressbarMain.Style==ProgressBarStyle.Marquee) {
 					mainformNow.progressbarMain.Style=ProgressBarStyle.Continuous;
 					mainformNow.progressbarMain.Value=bGood?mainformNow.progressbarMain.Maximum:(mainformNow.progressbarMain.Maximum/2);
@@ -2888,9 +2991,10 @@ namespace ExpertMultimedia {
 		void StartupTimerTick(object sender, EventArgs e)
 		{
 			if (IsStartupStarted) {
-				Console.Error.WriteLine("Warning: skipping startup since already started (startup timer ticked again).");
+				Debug.WriteLine("Warning: skipping startup since already started (startup timer ticked again).");
 				return;
 			}
+			IsStartupStarted=true;
 			if (!File.Exists(StartupFile_FullName)) {
 				writeDefault_StartupScript(StartupFile_FullName);
 			}
@@ -2910,13 +3014,12 @@ namespace ExpertMultimedia {
 			Console.Error.WriteLine("Timed startup is about to open " + Common.SafeString(StartupFile_FullName,true));
 			DateTime dtNow=DateTime.Now;
 			lbOutNow.Items.Add(dtNow.Year+"-"+dtNow.Month+"-"+dtNow.Day+" "+dtNow.Hour+":"+dtNow.Minute);
-			IsStartupStarted=true;
 			optionsHelpLabel.Visible=false;
 			startupTimer.Stop();
 			string sMsg="";
 			tbStatus.Text="Running startup script (please wait)...";
 			Application.DoEvents();
-			RunScript(StartupFile_FullName, recreateFullPathCheckBox.Checked);
+			RunScript(StartupFile_FullName, recreateFullPathCheckBox.Checked, 1000);
 			this.profileLabel.Visible=true;
 			Console.Error.WriteLine("Finished " + Common.SafeString(StartupScriptFile_Name,true)+" in MainFormLoad");
 			bFoundLoadProfile=false;
@@ -2937,7 +3040,7 @@ namespace ExpertMultimedia {
 			
 			if (!bLoadedProfile) {  //TODO: deprecate this case
 				Console.Error.WriteLine(Common.SafeString(StartupScriptFile_Name,true)+" did not load a profile so loading default (\""+DefaultProfile_Name+"\")");
-				bool bTest=RunScriptLine("LoadProfile:"+DefaultProfile_Name, recreateFullPathCheckBox.Checked, "<automation in StartupTimerTick>", -1);
+				bool bTest=RunScriptLine("LoadProfile:"+DefaultProfile_Name, recreateFullPathCheckBox.Checked, "<automation in StartupTimerTick>", -1, 500);
 				Console.Error.WriteLine("Loaded Profile \""+DefaultProfile_Name+"\"..."+(bTest?"OK":"FAILED!"));
 				string sAllData="";
 				try {
