@@ -41,6 +41,7 @@ namespace ExpertMultimedia
 		private void InitializeComponent()
 		{
 			this.components = new System.ComponentModel.Container();
+			System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
 			this.destinationComboBox = new System.Windows.Forms.ComboBox();
 			this.lbOut = new System.Windows.Forms.ListBox();
 			this.lblDest = new System.Windows.Forms.Label();
@@ -90,9 +91,9 @@ namespace ExpertMultimedia
 			this.tableLayoutPanel1.SuspendLayout();
 			this.menuStrip1.SuspendLayout();
 			this.SuspendLayout();
-			//
+			// 
 			// destinationComboBox
-			//
+			// 
 			this.destinationComboBox.Dock = System.Windows.Forms.DockStyle.Fill;
 			this.destinationComboBox.FormattingEnabled = true;
 			this.destinationComboBox.Location = new System.Drawing.Point(294, 4);
@@ -101,9 +102,9 @@ namespace ExpertMultimedia
 			this.destinationComboBox.Size = new System.Drawing.Size(291, 27);
 			this.destinationComboBox.TabIndex = 1;
 			this.destinationComboBox.SelectedIndexChanged += new System.EventHandler(this.DestinationComboBoxSelectedIndexChanged);
-			//
+			// 
 			// lbOut
-			//
+			// 
 			this.lbOut.Dock = System.Windows.Forms.DockStyle.Fill;
 			this.lbOut.FormattingEnabled = true;
 			this.lbOut.HorizontalScrollbar = true;
@@ -117,9 +118,9 @@ namespace ExpertMultimedia
 			this.lbOut.MouseEnter += new System.EventHandler(this.LbOutMouseEnter);
 			this.lbOut.MouseLeave += new System.EventHandler(this.LbOutMouseLeave);
 			this.lbOut.MouseUp += new System.Windows.Forms.MouseEventHandler(this.LbOutMouseUp);
-			//
+			// 
 			// lblDest
-			//
+			// 
 			this.lblDest.Anchor = System.Windows.Forms.AnchorStyles.Right;
 			this.lblDest.AutoSize = true;
 			this.lblDest.Location = new System.Drawing.Point(198, 6);
@@ -129,9 +130,9 @@ namespace ExpertMultimedia
 			this.lblDest.TabIndex = 3;
 			this.lblDest.Text = "Destination:";
 			this.lblDest.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
-			//
+			// 
 			// tbStatus
-			//
+			// 
 			this.tbStatus.BackColor = System.Drawing.SystemColors.Control;
 			this.tbStatus.Dock = System.Windows.Forms.DockStyle.Bottom;
 			this.tbStatus.Location = new System.Drawing.Point(0, 559);
@@ -140,9 +141,9 @@ namespace ExpertMultimedia
 			this.tbStatus.ReadOnly = true;
 			this.tbStatus.Size = new System.Drawing.Size(886, 27);
 			this.tbStatus.TabIndex = 6;
-			//
+			// 
 			// progressbarMain
-			//
+			// 
 			this.progressbarMain.Dock = System.Windows.Forms.DockStyle.Fill;
 			this.progressbarMain.Location = new System.Drawing.Point(3, 455);
 			this.progressbarMain.Name = "progressbarMain";
@@ -150,9 +151,9 @@ namespace ExpertMultimedia
 			this.progressbarMain.Step = 1;
 			this.progressbarMain.Style = System.Windows.Forms.ProgressBarStyle.Continuous;
 			this.progressbarMain.TabIndex = 8;
-			//
+			// 
 			// profileLabel
-			//
+			// 
 			this.profileLabel.Anchor = System.Windows.Forms.AnchorStyles.Right;
 			this.profileLabel.AutoSize = true;
 			this.profileLabel.Font = new System.Drawing.Font("Calibri", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
@@ -164,9 +165,9 @@ namespace ExpertMultimedia
 			this.profileLabel.Text = "(Error: no profile found!)";
 			this.profileLabel.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
 			this.profileLabel.Visible = false;
-			//
+			// 
 			// labelTrivialStatus
-			//
+			// 
 			this.labelTrivialStatus.AutoEllipsis = true;
 			this.labelTrivialStatus.Dock = System.Windows.Forms.DockStyle.Bottom;
 			this.labelTrivialStatus.Location = new System.Drawing.Point(0, 525);
@@ -174,9 +175,9 @@ namespace ExpertMultimedia
 			this.labelTrivialStatus.Name = "labelTrivialStatus";
 			this.labelTrivialStatus.Size = new System.Drawing.Size(886, 34);
 			this.labelTrivialStatus.TabIndex = 10;
-			//
+			// 
 			// mainTableLayoutPanel
-			//
+			// 
 			this.mainTableLayoutPanel.ColumnCount = 1;
 			this.mainTableLayoutPanel.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
 			this.mainTableLayoutPanel.Controls.Add(this.progressbarMain, 0, 6);
@@ -201,9 +202,9 @@ namespace ExpertMultimedia
 			this.mainTableLayoutPanel.Size = new System.Drawing.Size(886, 496);
 			this.mainTableLayoutPanel.TabIndex = 14;
 			this.mainTableLayoutPanel.Paint += new System.Windows.Forms.PaintEventHandler(this.TableLayoutPanel1Paint);
-			//
+			// 
 			// mainTabControl
-			//
+			// 
 			this.mainTabControl.Controls.Add(this.optionsTabPage);
 			this.mainTabControl.Controls.Add(this.logTabPage);
 			this.mainTabControl.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -213,9 +214,9 @@ namespace ExpertMultimedia
 			this.mainTabControl.SelectedIndex = 0;
 			this.mainTabControl.Size = new System.Drawing.Size(878, 232);
 			this.mainTabControl.TabIndex = 15;
-			//
+			// 
 			// optionsTabPage
-			//
+			// 
 			this.optionsTabPage.Controls.Add(this.optionsOuterTableLayoutPanel);
 			this.optionsTabPage.Location = new System.Drawing.Point(4, 28);
 			this.optionsTabPage.Margin = new System.Windows.Forms.Padding(4);
@@ -225,9 +226,9 @@ namespace ExpertMultimedia
 			this.optionsTabPage.TabIndex = 0;
 			this.optionsTabPage.Text = "Options";
 			this.optionsTabPage.UseVisualStyleBackColor = true;
-			//
+			// 
 			// optionsOuterTableLayoutPanel
-			//
+			// 
 			this.optionsOuterTableLayoutPanel.ColumnCount = 1;
 			this.optionsOuterTableLayoutPanel.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
 			this.optionsOuterTableLayoutPanel.Controls.Add(this.optionsHelpLabel, 0, 0);
@@ -240,18 +241,18 @@ namespace ExpertMultimedia
 			this.optionsOuterTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
 			this.optionsOuterTableLayoutPanel.Size = new System.Drawing.Size(862, 192);
 			this.optionsOuterTableLayoutPanel.TabIndex = 1;
-			//
+			// 
 			// optionsHelpLabel
-			//
+			// 
 			this.optionsHelpLabel.AutoSize = true;
 			this.optionsHelpLabel.Location = new System.Drawing.Point(3, 0);
 			this.optionsHelpLabel.Name = "optionsHelpLabel";
 			this.optionsHelpLabel.Size = new System.Drawing.Size(322, 19);
 			this.optionsHelpLabel.TabIndex = 1;
 			this.optionsHelpLabel.Text = "Press \"Go\" to backup with the following options:";
-			//
+			// 
 			// optionsTableLayoutPanel
-			//
+			// 
 			this.optionsTableLayoutPanel.AutoScroll = true;
 			this.optionsTableLayoutPanel.CellBorderStyle = System.Windows.Forms.TableLayoutPanelCellBorderStyle.Single;
 			this.optionsTableLayoutPanel.ColumnCount = 3;
@@ -267,9 +268,9 @@ namespace ExpertMultimedia
 			this.optionsTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
 			this.optionsTableLayoutPanel.Size = new System.Drawing.Size(854, 165);
 			this.optionsTableLayoutPanel.TabIndex = 0;
-			//
+			// 
 			// logTabPage
-			//
+			// 
 			this.logTabPage.Controls.Add(this.lbOut);
 			this.logTabPage.Location = new System.Drawing.Point(4, 28);
 			this.logTabPage.Margin = new System.Windows.Forms.Padding(4);
@@ -279,9 +280,9 @@ namespace ExpertMultimedia
 			this.logTabPage.TabIndex = 1;
 			this.logTabPage.Text = "Log";
 			this.logTabPage.UseVisualStyleBackColor = true;
-			//
+			// 
 			// flowLayoutPanel1
-			//
+			// 
 			this.flowLayoutPanel1.AutoSize = true;
 			this.flowLayoutPanel1.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
 			this.flowLayoutPanel1.Controls.Add(this.addFolderButton);
@@ -291,9 +292,9 @@ namespace ExpertMultimedia
 			this.flowLayoutPanel1.Name = "flowLayoutPanel1";
 			this.flowLayoutPanel1.Size = new System.Drawing.Size(216, 42);
 			this.flowLayoutPanel1.TabIndex = 16;
-			//
+			// 
 			// addFolderButton
-			//
+			// 
 			this.addFolderButton.Location = new System.Drawing.Point(4, 4);
 			this.addFolderButton.Margin = new System.Windows.Forms.Padding(4);
 			this.addFolderButton.Name = "addFolderButton";
@@ -302,9 +303,9 @@ namespace ExpertMultimedia
 			this.addFolderButton.Text = "Add Folder";
 			this.addFolderButton.UseVisualStyleBackColor = true;
 			this.addFolderButton.Click += new System.EventHandler(this.AddFolderButtonClick);
-			//
+			// 
 			// addFileButton
-			//
+			// 
 			this.addFileButton.Location = new System.Drawing.Point(112, 4);
 			this.addFileButton.Margin = new System.Windows.Forms.Padding(4);
 			this.addFileButton.Name = "addFileButton";
@@ -313,9 +314,9 @@ namespace ExpertMultimedia
 			this.addFileButton.Text = "Add File";
 			this.addFileButton.UseVisualStyleBackColor = true;
 			this.addFileButton.Click += new System.EventHandler(this.AddFileButtonClick);
-			//
+			// 
 			// destinationTableLayoutPanel
-			//
+			// 
 			this.destinationTableLayoutPanel.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
 			this.destinationTableLayoutPanel.ColumnCount = 3;
 			this.destinationTableLayoutPanel.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 33F));
@@ -331,18 +332,18 @@ namespace ExpertMultimedia
 			this.destinationTableLayoutPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
 			this.destinationTableLayoutPanel.Size = new System.Drawing.Size(880, 32);
 			this.destinationTableLayoutPanel.TabIndex = 14;
-			//
+			// 
 			// driveLabel
-			//
+			// 
 			this.driveLabel.Anchor = System.Windows.Forms.AnchorStyles.Left;
 			this.driveLabel.AutoSize = true;
 			this.driveLabel.Location = new System.Drawing.Point(592, 6);
 			this.driveLabel.Name = "driveLabel";
 			this.driveLabel.Size = new System.Drawing.Size(0, 19);
 			this.driveLabel.TabIndex = 4;
-			//
+			// 
 			// goFlowLayoutPanel
-			//
+			// 
 			this.goFlowLayoutPanel.Anchor = System.Windows.Forms.AnchorStyles.Top;
 			this.goFlowLayoutPanel.AutoSize = true;
 			this.goFlowLayoutPanel.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
@@ -352,9 +353,9 @@ namespace ExpertMultimedia
 			this.goFlowLayoutPanel.Name = "goFlowLayoutPanel";
 			this.goFlowLayoutPanel.Size = new System.Drawing.Size(139, 44);
 			this.goFlowLayoutPanel.TabIndex = 17;
-			//
+			// 
 			// goButton
-			//
+			// 
 			this.goButton.Anchor = System.Windows.Forms.AnchorStyles.Top;
 			this.goButton.AutoSize = true;
 			this.goButton.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
@@ -367,9 +368,9 @@ namespace ExpertMultimedia
 			this.goButton.Text = "Go";
 			this.goButton.UseVisualStyleBackColor = true;
 			this.goButton.Click += new System.EventHandler(this.GoButtonClick);
-			//
+			// 
 			// cancelButton
-			//
+			// 
 			this.cancelButton.AutoSize = true;
 			this.cancelButton.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
 			this.cancelButton.Font = new System.Drawing.Font("Calibri", 15.75F, System.Drawing.FontStyle.Bold);
@@ -380,18 +381,18 @@ namespace ExpertMultimedia
 			this.cancelButton.Text = "Cancel";
 			this.cancelButton.UseVisualStyleBackColor = true;
 			this.cancelButton.Click += new System.EventHandler(this.CancelButtonClick);
-			//
+			// 
 			// flowLayoutPanel2
-			//
+			// 
 			this.flowLayoutPanel2.AutoSize = true;
 			this.flowLayoutPanel2.Controls.Add(this.recreateFullPathCheckBox);
 			this.flowLayoutPanel2.Location = new System.Drawing.Point(3, 370);
 			this.flowLayoutPanel2.Name = "flowLayoutPanel2";
 			this.flowLayoutPanel2.Size = new System.Drawing.Size(223, 29);
 			this.flowLayoutPanel2.TabIndex = 18;
-			//
+			// 
 			// recreateFullPathCheckBox
-			//
+			// 
 			this.recreateFullPathCheckBox.AutoSize = true;
 			this.recreateFullPathCheckBox.Location = new System.Drawing.Point(3, 3);
 			this.recreateFullPathCheckBox.Name = "recreateFullPathCheckBox";
@@ -399,9 +400,9 @@ namespace ExpertMultimedia
 			this.recreateFullPathCheckBox.TabIndex = 0;
 			this.recreateFullPathCheckBox.Text = "Recreate Full Path on Backup";
 			this.recreateFullPathCheckBox.UseVisualStyleBackColor = true;
-			//
+			// 
 			// tableLayoutPanel1
-			//
+			// 
 			this.tableLayoutPanel1.Anchor = System.Windows.Forms.AnchorStyles.Top;
 			this.tableLayoutPanel1.AutoSize = true;
 			this.tableLayoutPanel1.ColumnCount = 2;
@@ -415,9 +416,9 @@ namespace ExpertMultimedia
 			this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle());
 			this.tableLayoutPanel1.Size = new System.Drawing.Size(314, 33);
 			this.tableLayoutPanel1.TabIndex = 19;
-			//
+			// 
 			// profileCB
-			//
+			// 
 			this.profileCB.Anchor = System.Windows.Forms.AnchorStyles.Left;
 			this.profileCB.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
 			this.profileCB.FormattingEnabled = true;
@@ -426,9 +427,9 @@ namespace ExpertMultimedia
 			this.profileCB.Size = new System.Drawing.Size(121, 27);
 			this.profileCB.TabIndex = 10;
 			this.profileCB.SelectedIndexChanged += new System.EventHandler(this.ProfileCBSelectedIndexChanged);
-			//
+			// 
 			// menuStrip1
-			//
+			// 
 			this.menuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
 			this.settingsToolStripMenuItem,
 			this.helpToolStripMenuItem});
@@ -438,9 +439,9 @@ namespace ExpertMultimedia
 			this.menuStrip1.Size = new System.Drawing.Size(886, 29);
 			this.menuStrip1.TabIndex = 15;
 			this.menuStrip1.Text = "menuStrip1";
-			//
+			// 
 			// settingsToolStripMenuItem
-			//
+			// 
 			this.settingsToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
 			this.menuitemEditMain,
 			this.menuitemEditScript});
@@ -448,23 +449,23 @@ namespace ExpertMultimedia
 			this.settingsToolStripMenuItem.Name = "settingsToolStripMenuItem";
 			this.settingsToolStripMenuItem.Size = new System.Drawing.Size(73, 23);
 			this.settingsToolStripMenuItem.Text = "Settings";
-			//
+			// 
 			// menuitemEditMain
-			//
+			// 
 			this.menuitemEditMain.Name = "menuitemEditMain";
 			this.menuitemEditMain.Size = new System.Drawing.Size(166, 24);
 			this.menuitemEditMain.Text = "Main";
 			this.menuitemEditMain.Click += new System.EventHandler(this.MenuitemEditMainClick);
-			//
+			// 
 			// menuitemEditScript
-			//
+			// 
 			this.menuitemEditScript.Name = "menuitemEditScript";
 			this.menuitemEditScript.Size = new System.Drawing.Size(166, 24);
 			this.menuitemEditScript.Text = "Current Script";
 			this.menuitemEditScript.Click += new System.EventHandler(this.MenuitemEditScriptClick);
-			//
+			// 
 			// helpToolStripMenuItem
-			//
+			// 
 			this.helpToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
 			this.saveOutputToolStripMenuItem,
 			this.menuitemHelp_ViewOutputOfLastRun});
@@ -472,37 +473,37 @@ namespace ExpertMultimedia
 			this.helpToolStripMenuItem.Name = "helpToolStripMenuItem";
 			this.helpToolStripMenuItem.Size = new System.Drawing.Size(51, 23);
 			this.helpToolStripMenuItem.Text = "Help";
-			//
+			// 
 			// saveOutputToolStripMenuItem
-			//
+			// 
 			this.saveOutputToolStripMenuItem.Name = "saveOutputToolStripMenuItem";
 			this.saveOutputToolStripMenuItem.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.O)));
 			this.saveOutputToolStripMenuItem.Size = new System.Drawing.Size(231, 24);
 			this.saveOutputToolStripMenuItem.Text = "Save Log";
 			this.saveOutputToolStripMenuItem.Click += new System.EventHandler(this.SaveOutputToolStripMenuItemClick);
-			//
+			// 
 			// menuitemHelp_ViewOutputOfLastRun
-			//
+			// 
 			this.menuitemHelp_ViewOutputOfLastRun.Name = "menuitemHelp_ViewOutputOfLastRun";
 			this.menuitemHelp_ViewOutputOfLastRun.Size = new System.Drawing.Size(231, 24);
 			this.menuitemHelp_ViewOutputOfLastRun.Text = "View Log from Last Run";
 			this.menuitemHelp_ViewOutputOfLastRun.Click += new System.EventHandler(this.MenuitemHelp_ViewOutputOfLastRunClick);
-			//
+			// 
 			// startupTimer
-			//
+			// 
 			this.startupTimer.Tick += new System.EventHandler(this.StartupTimerTick);
-			//
+			// 
 			// mainFolderBrowserDialog
-			//
+			// 
 			this.mainFolderBrowserDialog.RootFolder = System.Environment.SpecialFolder.MyComputer;
 			this.mainFolderBrowserDialog.HelpRequest += new System.EventHandler(this.MainFolderBrowserDialogHelpRequest);
-			//
+			// 
 			// openFileDialog1
-			//
+			// 
 			this.openFileDialog1.FileName = "openFileDialog1";
-			//
+			// 
 			// MainForm
-			//
+			// 
 			this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 19F);
 			this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
 			this.ClientSize = new System.Drawing.Size(886, 586);
@@ -511,6 +512,7 @@ namespace ExpertMultimedia
 			this.Controls.Add(this.tbStatus);
 			this.Controls.Add(this.menuStrip1);
 			this.Font = new System.Drawing.Font("Calibri", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+			this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
 			this.MainMenuStrip = this.menuStrip1;
 			this.Margin = new System.Windows.Forms.Padding(4);
 			this.Name = "MainForm";
@@ -538,6 +540,7 @@ namespace ExpertMultimedia
 			this.menuStrip1.PerformLayout();
 			this.ResumeLayout(false);
 			this.PerformLayout();
+
 		}
 		private System.Windows.Forms.CheckBox recreateFullPathCheckBox;
 		private System.Windows.Forms.FlowLayoutPanel flowLayoutPanel2;
