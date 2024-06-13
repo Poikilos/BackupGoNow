@@ -89,10 +89,10 @@ namespace ExpertMultimedia {
 				return Path.Combine(MyAppDataFolder_FullName, profilesFolder_Name);
 			}
 		}
-		public static readonly string StartupScriptFile_Name = "startup.ini";
+		public static readonly string StartupFile_Name = "startup.ini";
 		public static string StartupFile_FullName {
 			get {
-				return Path.Combine(MyAppDataFolder_FullName, StartupScriptFile_Name);
+				return Path.Combine(MyAppDataFolder_FullName, StartupFile_Name);
 			}
 		}
 		public static readonly string MainScriptFile_Name = "main.ini";
@@ -1489,9 +1489,6 @@ namespace ExpertMultimedia {
 			//FolderLister.bDebug=bTestOnly;
 			//bDebug=bTestOnly;
 			lbOutNow=this.lbOut;
-//			if (File.Exists(Path.Combine(MyAppDataFolder_FullName,StartupScriptFile_Name))) { //see Timer Tick for new behavior
-//				StartupFile_FullName=Path.Combine(MyAppDataFolder_FullName,StartupScriptFile_Name);
-//			}
 			Console.Error.WriteLine("Running startupTimer");
 			
 			startupTimer.Start(); // runs StartupTimerTick after GUI is finished loading.
@@ -1935,6 +1932,7 @@ namespace ExpertMultimedia {
 				}//end if sCommandLower==addfolder
 				else if (sCommandLower=="loadprofile") {
 					Common.sParticiple="setting DestSubFolder";
+					
 					RunScriptLine("DestSubFolder:Backup-"+Environment.MachineName, enableRecreateFullPath, "<loadprofile automation>", -1, 10);  // ok since happens before main.ini
 					RunScriptLine("RecreateFullPathOnBackup:on", enableRecreateFullPath, "<loadprofile automation>", -1, 10);  // ok since happens before main.ini
 					Common.iDebugLevel=Common.DebugLevel_Mega;//debug only
@@ -1945,15 +1943,26 @@ namespace ExpertMultimedia {
 					char foundSlash=Common.getSlash(sValue);
 					//string BackupProfileFolder_FullName_TEMP=Path.Combine( Path.Combine(".","profiles"), sValue );
 					string BackupProfileFolder_FullName_TEMP=null;
-					if (foundSlash!=(char)0) { //if found slash
+					if (sValue.Trim() == "") {
+						BackupProfileFolder_FullName_TEMP = null;
+					}
+					else if (foundSlash!=(char)0) { //if found slash
 						BackupProfileFolder_FullName_TEMP=sValue;
 					}
 					else { //else did not find slash
 						BackupProfileFolder_FullName_TEMP=Path.Combine(profilesFolder_FullName,sValue);
 					}
-					Console.Error.Write("checking \"" + BackupProfileFolder_FullName_TEMP + "\"...");
+					if (BackupProfileFolder_FullName_TEMP != null) {
+						Console.Error.Write("checking \"" + BackupProfileFolder_FullName_TEMP + "\"...");
 					Console.Error.Flush();
-					if (Directory.Exists(BackupProfileFolder_FullName_TEMP)) {
+					}
+					if (BackupProfileFolder_FullName_TEMP == null) {
+						Console.Error.Write("LoadProfile value is blank!");
+						string sMsg="No profile name was set!";
+						Console.Error.WriteLine(sMsg);
+						MessageBox.Show(sMsg);
+					}
+					else if (Directory.Exists(BackupProfileFolder_FullName_TEMP)) {
 						Console.Error.Write("found...");
 						Console.Error.Flush();
 						DirectoryInfo diProfileX = new DirectoryInfo(BackupProfileFolder_FullName_TEMP);
@@ -2995,7 +3004,79 @@ namespace ExpertMultimedia {
 			//}
 		}
 		
-		
+		bool EditScriptLine(string path, string key, string value) {
+			bool bSuccessFullyResetStartup = false;
+			bool bFoundLoadProfile = false;
+			FileInfo fi = new FileInfo(path);
+			StreamReader streamIn = null;
+			StreamWriter outStream = null;
+			string tmpPath = path + ".tmp";
+			try {
+				string sMsg = "Attempting to edit "+Common.SafeString(StartupFile_FullName,true)+" and add \"LoadProfile:"+value+"\" if no valid LoadProfile statement is found...";
+				tbStatus.Text = sMsg;
+				Application.DoEvents();
+				Console.Error.Write(sMsg);
+				Console.Error.Flush();
+				Console.Error.Write("reading data...");
+				Console.Error.Flush();
+				outStream = new StreamWriter(tmpPath);
+				if (fi.Exists) {
+					streamIn = new StreamReader(fi.FullName);
+					string sLine;
+					while ( (sLine=streamIn.ReadLine()) != null ) {
+						while (sLine.EndsWith("\n")||sLine.EndsWith("\r")) {
+							if (sLine=="\n"||sLine=="\r") {sLine=""; break;}
+							else sLine=sLine.Substring(0,sLine.Length-1);
+						}
+						while (sLine.StartsWith("\n")||sLine.StartsWith("\r")) {
+							if (sLine=="\n"||sLine=="\r") {sLine=""; break;}
+							else sLine=sLine.Substring(1);
+						}
+						while (sLine.StartsWith(" ")) {
+							if (sLine==" ") {sLine=""; break;}
+							else sLine=sLine.Substring(1);
+						}
+						if (sLine.ToLower().Trim().StartsWith(key+":")) {
+							// &&sLine.ToLower()!="loadprofile:"
+							// TODO: ^ why was this && check here??
+							outStream.WriteLine(key+":"+value);
+							bFoundLoadProfile=true;
+						}
+						else {
+							outStream.WriteLine(sLine);
+						}
+						// value is written below if key is not found
+						// (including if original file is not present)
+					}
+					streamIn.Close();
+					streamIn = null;
+				}
+				if (!bFoundLoadProfile) {
+					Console.Error.Write("writing data...");
+					Console.Error.Flush();
+					//System.Threading.Thread.Sleep(100);//wait for file to be ready (is this ever needed???)
+					outStream.WriteLine(key+":"+value);
+					Console.Error.WriteLine("OK.");
+				}
+				outStream.Close();
+				outStream = null;
+				if (File.Exists(path)) {
+					// Since File.Move throws exception if destination exists:
+					File.Delete(path);
+				}
+				File.Move(tmpPath, path);
+				bSuccessFullyResetStartup = true;
+			}
+			catch (Exception exn) {
+				Common.ShowExn(exn, "creating "+Common.SafeString(StartupFile_Name,true), "MainFormLoad");
+			}
+			finally {
+				if (streamIn != null) streamIn.Close();
+				if (outStream != null) outStream.Close();
+			}
+			return bSuccessFullyResetStartup;
+		}
+				
 		private static bool IsStartupStarted=false;
 		/// <summary>
 		/// Timer tick event for delayed startup (wait for gui to load before parsing and showing options which is slow)
@@ -3048,7 +3129,7 @@ namespace ExpertMultimedia {
 			
 			RunScript(StartupFile_FullName, recreateFullPathCheckBox.Checked, 1000);
 			this.profileLabel.Visible=true;
-			Console.Error.WriteLine("Finished " + Common.SafeString(StartupScriptFile_Name,true)+" in MainFormLoad");
+			Debug.WriteLine("Finished " + Common.SafeString(StartupFile_Name,true)+" in MainFormLoad");
 			bFoundLoadProfile=false;
 			bSuccessFullyResetStartup=false;
 			sMsg="Attempting to get path of current user's Documents...";
@@ -3063,63 +3144,22 @@ namespace ExpertMultimedia {
 			}
 			catch {}
 			
-			
-			if (!bLoadedProfile) {  //TODO: deprecate this case
-				Console.Error.WriteLine(Common.SafeString(StartupScriptFile_Name,true)+" did not load a profile so loading default (\""+DefaultProfile_Name+"\")");
-				bool bTest=RunScriptLine("LoadProfile:"+DefaultProfile_Name, recreateFullPathCheckBox.Checked, "<automation in StartupTimerTick>", -1, 500);
+			if (!bLoadedProfile) { // startup.ini was missing a LoadProfile line
+				// (RunScript(StartupFile_FullName ... ) has missing/failed LoadProfile.
+				MessageBox.Show(
+					"The startup.ini didn't set a profile, so using "+Environment.MachineName,
+					"Backup GoNow Error",
+					MessageBoxButtons.OK,
+					MessageBoxIcon.Error
+				);
+				// This is for the case when startup.ini is corrupt (missing LoadProfile)!
+				string fallbackProfile = Environment.MachineName;
+				Console.Error.WriteLine(Common.SafeString(StartupFile_Name,true)+" did not load a profile so loading default (\""+DefaultProfile_Name+"\")");
+				bool bTest = RunScriptLine("LoadProfile:"+fallbackProfile, recreateFullPathCheckBox.Checked, "<automation in StartupTimerTick>", -1, 500);
 				DirectoryInfo diBackupScript = new DirectoryInfo(BackupScriptFile_FullName); // FullName is set by LoadProfile called directly above
 				Debug.WriteLine("Loaded Profile \""+diBackupScript.Name+"\"..."+(bTest?"OK":"FAILED!"));
-				string sAllData="";
-				try {
-					sMsg="Attempting to edit "+Common.SafeString(StartupScriptFile_Name,true)+" and add \"LoadProFile:"+DefaultProfile_Name+"\" if no valid LoadProfile statement is found...";
-					tbStatus.Text=sMsg;
-					Application.DoEvents();
-					Console.Error.Write(sMsg);
-					Console.Error.Flush();
-					Console.Error.Write("reading data...");
-					Console.Error.Flush();
-					try {
-						if (File.Exists(StartupScriptFile_Name)) {
-							StreamReader streamIn=new StreamReader(StartupScriptFile_Name);
-							string sLine;
-							while ( (sLine=streamIn.ReadLine()) != null ) {
-								while (sLine.EndsWith("\n")||sLine.EndsWith("\r")) {
-									if (sLine=="\n"||sLine=="\r") {sLine=""; break;}
-									else sLine=sLine.Substring(0,sLine.Length-1);
-								}
-								while (sLine.StartsWith("\n")||sLine.StartsWith("\r")) {
-									if (sLine=="\n"||sLine=="\r") {sLine=""; break;}
-									else sLine=sLine.Substring(1);
-								}
-								while (sLine.StartsWith(" ")) {
-									if (sLine==" ") {sLine=""; break;}
-									else sLine=sLine.Substring(1);
-								}
-								if (sLine.ToLower().StartsWith("loadprofile:")&&sLine.ToLower()!="loadprofile:") {
-									sAllData+="LoadProfile:"+BackupScriptFile_Name+Environment.NewLine;
-									bFoundLoadProfile=true;
-								}
-								else sAllData+=sLine+Environment.NewLine;
-							}
-							streamIn.Close();
-						}
-					}
-					catch (Exception exn) {
-						Common.ShowExn(exn,"reading "+Common.SafeString(StartupScriptFile_Name,true));
-					}
-					Console.Error.Write("writing data...");
-					Console.Error.Flush();
-					//System.Threading.Thread.Sleep(100);//wait for file to be ready (is this ever needed???)
-					StreamWriter outStream=new StreamWriter(StartupScriptFile_Name);
-					outStream.WriteLine(sAllData);
-					outStream.WriteLine("LoadProfile:"+DefaultProfile_Name);
-					outStream.Close();
-					Console.Error.WriteLine("OK.");
-					bSuccessFullyResetStartup=true;
-				}
-				catch (Exception exn) {
-					Common.ShowExn(exn,"creating "+Common.SafeString(StartupScriptFile_Name,true),"MainFormLoad");
-				}
+
+				EditScriptLine(StartupFile_FullName, "LoadProfile", fallbackProfile);
 				//System.Threading.Thread.Sleep(500);
 				tbStatus.Text="Done checking startup {bLoadedProfile:"+(bLoadedProfile?"yes":"no")+"; bFoundLoadProfile:"+(bFoundLoadProfile?"yes":"no")+"; bSuccessFullyResetStartup:"+(bSuccessFullyResetStartup?"yes":"no")+"}.";
 			}//end if !bLoadedProfile
@@ -3209,7 +3249,7 @@ namespace ExpertMultimedia {
 				SaveBackupScript(doNotSaveLineIfStartingWithAnyOfTheseStrings);
 				tbStatus.Text="Saving profile...OK";
 				Application.DoEvents();
-				if (!File.Exists(Path.Combine(MyAppDataFolder_FullName,StartupScriptFile_Name))) {
+				if (!File.Exists(StartupFile_FullName)) {
 					Common.sParticiple="changing startup file path to use machine profile";  // FIXME: Do this or change participle
 				}
 				participle="saving startup file";
