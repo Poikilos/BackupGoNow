@@ -1342,15 +1342,15 @@ namespace ExpertMultimedia {
 							// If nonDated file was not logged yet, log it for clarity.
 							if (GreaterWriteTime(fiDest, fiNow)) {
 								LogWriteLine("\""+fiDest.FullName+"\" was newer: "+fiDest.LastWriteTime.ToFileTimeUtc().ToString()+">"+fiNow.LastWriteTime.ToFileTimeUtc().ToString());
-								multi_save = true;
+								// multi_save = true;
 							}
 							else if (SameWriteTime(fiDest, fiNow)) {
 								LogWriteLine("\""+fiDest.FullName+"\" was same: "+fiDest.LastWriteTime.ToFileTimeUtc().ToString()+"=="+fiNow.LastWriteTime.ToFileTimeUtc().ToString());
-								multi_save = true;
+								// multi_save = true;
 							}
 							else {
 								LogWriteLine("\""+fiDest.FullName+"\" was older: "+fiDest.LastWriteTime.ToFileTimeUtc().ToString()+"<"+fiNow.LastWriteTime.ToFileTimeUtc().ToString());
-								multi_save = true;
+								// multi_save = true;
 							}
 						}
 
@@ -1406,6 +1406,8 @@ namespace ExpertMultimedia {
 								File.Copy(SrcFile_FullName,sDestFile,true);
 								ulByteCountTotalActuallyCopied+=(ulong)fiNow.Length;
 							}
+							tbStatus.Text = "Checking \""+fiNow.Name+"\"...resaved.";
+							Application.DoEvents();
 						}
 						else {
 							// The file already appears to be backed up and up to date.
