@@ -6,7 +6,7 @@
  * 
  * To change this template use Tools | Options | Coding | Edit Standard Headers.
  */
-
+ 
 using System;
 //using System.Collections.Generic;
 using System.Collections;
@@ -34,6 +34,7 @@ namespace ExpertMultimedia {
 		//TODO: Option to remove files from the backup drive that aren't in the backup script
 		private static string overlimit_content_name="tl";
 		private static string overlimit_yml_name="tl.ssv";
+		private bool profileCBSuspendEvents=false;
 		public static bool is_first_overlimit=true;
 		public static int iLine=0;
 		public static bool bFoundLoadProfile=false;
@@ -75,7 +76,7 @@ namespace ExpertMultimedia {
 		public bool retroactiveUnmovableAnswer=false;
 		public static string sAppName="Backup GoNow";
 		public static string MyAppDataFolder_FullName=null;
-		public static string thisProfileFolder_FullName=null;
+		// public static string thisProfileFolder_FullName=null;
 		public static string profilesFolder_Name="profiles";
 		public static string profilesFolder_FullName=null;
 		public static string StartupScriptFile_Name="startup.ini";
@@ -258,7 +259,9 @@ namespace ExpertMultimedia {
 			RetryBatchFile_FullName=Path.Combine(MyAppDataFolder_FullName,RetryBatchFile_Name_DontTouchMe);
 			LastRunLog_FullName=Path.Combine(MyAppDataFolder_FullName,LastRunLogFile_Name_DontTouchMe);
 			profilesFolder_FullName=Path.Combine(MyAppDataFolder_FullName,profilesFolder_Name);
-			thisProfileFolder_FullName=Path.Combine(profilesFolder_FullName,"BackupGoNowDefault");
+			// thisProfileFolder_FullName=Path.Combine(profilesFolder_FullName,"BackupGoNowDefault");
+			BackupProfileFolder_FullName = Path.Combine(profilesFolder_FullName, "BackupGoNowDefault");
+			// ^ BackupProfileFolder_FullName gets changed when StartupFile_FullName is loaded.
 			StartupFile_FullName=Path.Combine(MyAppDataFolder_FullName,StartupScriptFile_Name);
 			//
 			// The InitializeComponent() call is required for Windows Forms designer support.
@@ -1685,6 +1688,16 @@ namespace ExpertMultimedia {
 			}
 			return sValue;
 		}
+		private void DisplayLoadedProfileName() {
+			DirectoryInfo diProfileX = new DirectoryInfo(BackupProfileFolder_FullName);
+			this.profileCBSuspendEvents = true;
+			if (!this.profileCB.Items.Contains(diProfileX.Name)) {
+				this.profileCB.Items.Add(diProfileX.Name);
+			}
+			this.profileCB.SelectedIndex = this.profileCB.Items.IndexOf(diProfileX.Name);
+			Application.DoEvents();
+			this.profileCBSuspendEvents = false;
+		}
 		private bool _RunScriptLine(string sLine, bool enableRecreateFullPath, string sFile, int lineNumber, long timeoutMS) {
 			System.Diagnostics.Stopwatch watch = new System.Diagnostics.Stopwatch();
 			watch.Start();
@@ -1920,6 +1933,7 @@ namespace ExpertMultimedia {
 						Console.Error.Flush();
 						DirectoryInfo diProfileX = new DirectoryInfo(BackupProfileFolder_FullName_TEMP);
 						BackupProfileFolder_FullName = diProfileX.FullName;
+						
 						this.menuitemEditScript.Enabled=true;
 						this.menuitemEditMain.Enabled=true;
 						Common.ClearInvalidDrives();
@@ -2049,10 +2063,19 @@ namespace ExpertMultimedia {
 							Debug.WriteLine("Warning: \""+sLine+"\" after GetPseudoRoots_CountNonNull took "+msss(watch.ElapsedMilliseconds)+"s");
 						}
 						
-						this.profileLabel.Text="Profile: "+Environment.UserName+" on "+diProfileX.Name;
-						if (diProfileX.Name=="BackupGoNowDefault") {
-							this.profileLabel.Text+=" (only the current Windows user)";
+						this.profileLabel.Text="Profile: "+Environment.UserName;
+						if (!this.profileCB.Items.Contains(diProfileX.Name)) {
+							this.profileCB.Items.Add(diProfileX.Name);
 						}
+						
+						ExpandProfileDropDown();
+						// this.profileCB.Text = diProfileX.Name;
+						if (diProfileX.Name=="BackupGoNowDefault") {
+							if (this.profileLabel.Text.EndsWith("s"))
+								this.profileLabel.Text+="'";
+							else this.profileLabel.Text+="'s";
+						}
+						DisplayLoadedProfileName();
 						BackupScriptFile_FullName=Path.Combine(BackupProfileFolder_FullName, BackupScriptFile_Name);
 						if (timeoutMS > 0 && watch.ElapsedMilliseconds > timeoutMS) {
 							Debug.WriteLine("Warning: \""+sLine+"\" before ShowOptions took "+msss(watch.ElapsedMilliseconds)+"s");
@@ -2063,7 +2086,7 @@ namespace ExpertMultimedia {
 							Debug.WriteLine("Warning: \""+sLine+"\" after ShowOptions took "+msss(watch.ElapsedMilliseconds)+"s");
 						}
 						
-						thisProfileFolder_FullName=Path.Combine(profilesFolder_FullName,Environment.MachineName);
+						string thisProfileFolder_FullName=Path.Combine(profilesFolder_FullName,Environment.MachineName);
 						if (!Directory.Exists(thisProfileFolder_FullName)) {
 							Directory.CreateDirectory(thisProfileFolder_FullName);
 						}
@@ -2080,6 +2103,7 @@ namespace ExpertMultimedia {
 							//}
 							MainScriptFile_FullName=thisDestFileFullName;
 						}
+						// NOTE: BackupScriptFile_FullName is set to it below if it is new
 						Common.sParticiple="continuing after rewriting "+thisDestFileFullName;
 						Common.sParticiple="rewriting "+BackupScriptFile_Name;
 						thisDestFileFullName=Path.Combine( thisProfileFolder_FullName , BackupScriptFile_Name );
@@ -2090,6 +2114,9 @@ namespace ExpertMultimedia {
 							CopyFileWithoutComments(BackupScriptFile_FullName, thisDestFileFullName, false   );
 							//}
 							BackupScriptFile_FullName=thisDestFileFullName;
+							// Switch to the machine profile since it is new:
+							BackupScriptFile_FullName = thisProfileFolder_FullName;
+							DisplayLoadedProfileName();
 						}
 						if (timeoutMS > 0 && watch.ElapsedMilliseconds > timeoutMS) {
 							Debug.WriteLine("Warning: \""+sLine+"\" after checking for unsaved generated profiles took "+msss(watch.ElapsedMilliseconds)+"s");
@@ -2995,10 +3022,11 @@ namespace ExpertMultimedia {
 				return;
 			}
 			IsStartupStarted=true;
+			startupTimer.Stop();
 			if (!File.Exists(StartupFile_FullName)) {
 				writeDefault_StartupScript(StartupFile_FullName);
 			}
-			thisProfileFolder_FullName=Path.Combine(profilesFolder_FullName,"BackupGoNowDefault");
+			string thisProfileFolder_FullName=Path.Combine(profilesFolder_FullName,"BackupGoNowDefault");
 			if (!Directory.Exists(thisProfileFolder_FullName)) {
 				Directory.CreateDirectory(thisProfileFolder_FullName);
 			}
@@ -3015,10 +3043,29 @@ namespace ExpertMultimedia {
 			DateTime dtNow=DateTime.Now;
 			lbOutNow.Items.Add(dtNow.Year+"-"+dtNow.Month+"-"+dtNow.Day+" "+dtNow.Hour+":"+dtNow.Minute);
 			optionsHelpLabel.Visible=false;
-			startupTimer.Stop();
+			
 			string sMsg="";
 			tbStatus.Text="Running startup script (please wait)...";
 			Application.DoEvents();
+			Debug.WriteLine("Checking for "+profilesFolder_FullName);
+			DirectoryInfo diProfiles = new DirectoryInfo(profilesFolder_FullName);
+			if (diProfiles.Exists) {
+				this.profileCB.SuspendLayout();
+				this.profileCB.Items.Clear();
+				Debug.WriteLine("Loading "+profilesFolder_FullName);
+				DirectoryInfo[] files = diProfiles.GetDirectories();
+				// Debug.WriteLine("iterating "+profilesFolder_FullName);
+				foreach (DirectoryInfo file in files) {
+					Debug.WriteLine("checking for "+file.Name);
+					if (!this.profileCB.Items.Contains(file.Name)) {
+						this.profileCB.Items.Add(file.Name);
+					}
+				}
+				ExpandProfileDropDown();				
+			}
+			this.profileCB.ResumeLayout();
+			// StartupFile_FullName is in MyAppDataFolder_FullName
+			
 			RunScript(StartupFile_FullName, recreateFullPathCheckBox.Checked, 1000);
 			this.profileLabel.Visible=true;
 			Console.Error.WriteLine("Finished " + Common.SafeString(StartupScriptFile_Name,true)+" in MainFormLoad");
@@ -3126,13 +3173,13 @@ namespace ExpertMultimedia {
 					Common.sParticiple=participle;
 					Directory.CreateDirectory(profilesFolder_FullName);
 				}			
-				if (!Directory.Exists(thisProfileFolder_FullName)) {
+				if (!Directory.Exists(BackupProfileFolder_FullName)) {
 					participle="creating profile folder in %APPDATA%"+Common.sDirSep+sMyName;
 					Common.sParticiple=participle;
-					Directory.CreateDirectory(thisProfileFolder_FullName);
+					Directory.CreateDirectory(BackupProfileFolder_FullName);
 				}
-				//thisProfileFolder_FullName=Path.Combine(thisProfileFolder_FullName,Environment.MachineName);
-				//BackupScriptFile_FullName=Path.Combine(thisProfileFolder_FullName,BackupScriptFile_Name);
+				//BackupProfileFolder_FullName=Path.Combine(BackupProfileFolder_FullName,Environment.MachineName);
+				//BackupScriptFile_FullName=Path.Combine(BackupProfileFolder_FullName,BackupScriptFile_Name);
 				participle="locking \""+BackupScriptFile_FullName+"\"";
 				Common.sParticiple=participle;
 				StreamWriter outStream=new StreamWriter(BackupScriptFile_FullName);
@@ -3158,13 +3205,7 @@ namespace ExpertMultimedia {
 					StartupFile_FullName=Path.Combine(MyAppDataFolder_FullName,StartupScriptFile_Name);
 				}
 				participle="saving startup file";
-				Common.sParticiple=participle;
-				tbStatus.Text="Saving startup file...";
-				Application.DoEvents();
-				StreamWriter startupIniStream=new StreamWriter(StartupFile_FullName);
-				startupIniStream.WriteLine("LoadProfile:"+thisProfileFolder_FullName);
-				startupIniStream.Close();
-				tbStatus.Text="Saving startup file...OK";
+				SaveStartupFile();
 				Application.DoEvents();
 			}
 			catch (Exception exn) {
@@ -3172,7 +3213,16 @@ namespace ExpertMultimedia {
 			}
 		}
 		
-		
+		void SaveStartupFile() {
+			Common.sParticiple = "saving startup file";
+			tbStatus.Text = "Saving startup file...";
+			Application.DoEvents();
+			StreamWriter startupIniStream = new StreamWriter(StartupFile_FullName);
+			startupIniStream.WriteLine("LoadProfile:"+BackupProfileFolder_FullName);
+			startupIniStream.Close();
+			tbStatus.Text="Saving startup file...OK";
+			Debug.WriteLine("Saved "+StartupFile_FullName+" with LoadProfile:"+BackupProfileFolder_FullName);
+		}
 		
 		void MainFolderBrowserDialogHelpRequest(object sender, EventArgs e)
 		{
@@ -3280,6 +3330,46 @@ namespace ExpertMultimedia {
 			else {
 				tbStatus.Text="You cancelled adding a file.";
 			}
+		}
+		int DropDownWidth(ComboBox myCombo)
+		{
+		    int maxWidth = 0;
+		    int temp = 0;
+		    Label label1 = new Label();
+		    label1.Font = myCombo.Font;
+		
+		    foreach (var obj in myCombo.Items)
+		    {
+		        label1.Text = obj.ToString();
+		        temp = label1.PreferredWidth;
+		        if (temp > maxWidth)
+		        {
+		            maxWidth = temp;
+		        }
+		    }
+		    label1.Dispose();
+		    return maxWidth;
+		}
+		void ExpandProfileDropDown() {
+			ExpandProfileDropDown(this.profileCB);
+		}
+		void ExpandProfileDropDown(ComboBox comboBox1) {
+			int width = DropDownWidth(comboBox1);  // width of *longest* item
+//			if (this.profileCB.DropDownWidth < width)
+//				this.profileCB.DropDownWidth = width;
+			int arrow_width = SystemInformation.VerticalScrollBarWidth;
+			if (this.profileCB.Width < width + arrow_width)
+				this.profileCB.Width = width + arrow_width;
+		}
+		void ProfileCBSelectedIndexChanged(object sender, EventArgs e)
+		{
+			ExpandProfileDropDown();
+			if (this.profileCBSuspendEvents) return;
+			string profileName = (string)this.profileCB.Items[this.profileCB.SelectedIndex];
+			Debug.WriteLine("User chose profile: "+profileName);
+			RunScriptLine("LoadProfile:"+profileName, recreateFullPathCheckBox.Checked, "<profileCB selected>", -1, 10);
+			SaveStartupFile();
+			// ^ SaveStartupFile does set thisProfileFolder_FullName = profileName;
 		}
 	}//end MainForm
 }//end namespace
