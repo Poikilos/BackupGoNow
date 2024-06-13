@@ -10,7 +10,7 @@ Annotations:
 
 ## [24.6.13] - 2024-06-13
 ### Fixed
-- Wait until a configuration is completely written and validated before saving over the original.
+- Wait until a configuration is completely written and validated (non-blank script.txt) before saving over the original.
   - Consolidate path, saving, and loading code.
 - Handle all situations regarding missing, blank, or invalid startup.ini (regarding selecting profiles).
 - Manage "non-dated" files (TrueCrypt and VeraCrypt image files where timestamp doesn't change when files inside are modified--See #16)
