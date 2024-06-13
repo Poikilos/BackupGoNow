@@ -27,7 +27,7 @@ namespace ExpertMultimedia {
 	/// Description of MainForm.
 	/// </summary>
 	public partial class MainForm : Form {
-		public static string sMyNameAndVersion="Backup GoNow 2024.6.13";
+		public static string sMyNameAndVersion="Backup GoNow (git)";
 		public static string sMyName="Backup GoNow";
 		//ArrayList alPseudoRootsNow=null;
 		//ArrayList alSelectableDrives=null;
@@ -735,8 +735,7 @@ namespace ExpertMultimedia {
 					//since script is apparently intact as user intended even if wrong
 					//(copy errors will happen even in the case of permission issues or full dest anyway
 					//so they do not normally indicate that the script is bad unless if case above is true)
-					if (File.Exists(lastGoodScriptPath)) File.Delete(lastGoodScriptPath);
-					File.Copy(sFileX, lastGoodScriptPath);
+					File.Copy(sFileX, lastGoodScriptPath, true);
 				}
 				if (alCopyError.Count>0) {
 					Output("");
@@ -2133,7 +2132,9 @@ namespace ExpertMultimedia {
 						//string ProfileFolder_FullName;
 						RunScript(MainScriptFile_FullName, recreateFullPathCheckBox.Checked, 1000); //excludes and adds destinations
 						
-						if (File.Exists( Path.Combine(BackupProfileFolder_FullName, LogFile_Name) )) RunScript(BackupProfileFolder_FullName + Common.sDirSep + LogFile_Name, recreateFullPathCheckBox.Checked, 1000); //excludes and adds destinations
+						if (File.Exists( Path.Combine(BackupProfileFolder_FullName, LogFile_Name) )) {
+							RunScript(Path.Combine(BackupProfileFolder_FullName, LogFile_Name), recreateFullPathCheckBox.Checked, 1000); //excludes and adds destinations
+						}
 						bLoadedProfile=true;
 						Common.UpdateSelectableDrivesAndPseudoRoots(true);
 						Common.sParticiple="finished updating Drives and PseudoRoots";
@@ -2377,6 +2378,7 @@ namespace ExpertMultimedia {
 //				}
 				//Control lastRow = thisTableLayoutPanel.Controls[thisTableLayoutPanel.RowCount-1];
 				thisTableLayoutPanel.GrowStyle = TableLayoutPanelGrowStyle.AddRows;
+				thisTableLayoutPanel.Hide();
 				thisTableLayoutPanel.SuspendLayout();  // Saves ~ 15 seconds!
 				thisTableLayoutPanel.Controls.Clear();
 				thisTableLayoutPanel.RowCount = 0;
@@ -2466,6 +2468,7 @@ namespace ExpertMultimedia {
 			}
 			finally {
 				thisTableLayoutPanel.ResumeLayout();
+				Application.DoEvents();  // try to prevent layout flicker after show
 				thisTableLayoutPanel.Show();
 			}
 		}//end ShowOptions
@@ -3010,8 +3013,8 @@ namespace ExpertMultimedia {
 				Output((ulByteCountTotalProcessed/1024/1024/1024).ToString()+"GB = "+(ulByteCountTotalProcessed/1024/1024).ToString()+"MB = "+(ulByteCountTotalProcessed/1024).ToString()+"KB = "+ulByteCountTotalProcessed.ToString()+"bytes of "+(ulByteCountTotal/1024/1024).ToString()+"MB source data finished, "+(ulByteCountTotalActuallyCopied/1024/1024).ToString()+"MB difference copied).",true);
 				try {
 					if (bGood&&!MainForm.bUserCancelledLastRun) {
-						Output("Opening log \""+BackupProfileFolder_FullName + Common.sDirSep + LogFile_Name+"\"",true);
-						StreamWriter outStream=new StreamWriter(BackupProfileFolder_FullName + Common.sDirSep + LogFile_Name);
+						Output("Opening log \""+Path.Combine(BackupProfileFolder_FullName, LogFile_Name)+"\"",true);
+						StreamWriter outStream = new StreamWriter(Path.Combine(BackupProfileFolder_FullName, LogFile_Name));
 						Output("Writing log (statistics)...",true);
 						outStream.WriteLine("ulByteCountTotalProcessed:"+ulByteCountTotalProcessed.ToString());
 						outStream.Close();
@@ -3335,8 +3338,7 @@ namespace ExpertMultimedia {
 				string fallbackProfile = Environment.MachineName;
 				Console.Error.WriteLine(Common.SafeString(StartupFile_Name,true)+" did not load a profile so loading default (\""+DefaultProfile_Name+"\")");
 				bool bTest = RunScriptLine("LoadProfile:"+fallbackProfile, recreateFullPathCheckBox.Checked, "<automation in StartupTimerTick>", -1, 500);
-				DirectoryInfo diBackupScript = new DirectoryInfo(BackupScriptFile_FullName); // FullName is set by LoadProfile called directly above
-				Debug.WriteLine("Loaded Profile \""+diBackupScript.Name+"\"..."+(bTest?"OK":"FAILED!"));
+				Debug.WriteLine("Loading Profile \""+fallbackProfile+"\"..."+(bTest?"OK":"FAILED!")+" ProfileName="+ProfileName);
 				Debug.WriteLine("Editing "+StartupFile_FullName+" in "+System.Reflection.MethodBase.GetCurrentMethod().Name);
 				EditScriptLine(StartupFile_FullName, "LoadProfile", fallbackProfile);
 				Debug.WriteLine("Done editing "+StartupFile_FullName+" in "+System.Reflection.MethodBase.GetCurrentMethod().Name);
@@ -3378,6 +3380,8 @@ namespace ExpertMultimedia {
 		}
 		
 		public bool CreateMachineConfiguration() {
+			// TODO: Consider making this accept a file path to copy from, or use writeDefault_* methods
+
 			bool isNew = false;
 			string machineProfileFolder_FullName=Path.Combine(profilesFolder_FullName,Environment.MachineName);
 			if (!Directory.Exists(machineProfileFolder_FullName)) {
@@ -3406,7 +3410,7 @@ namespace ExpertMultimedia {
 				tbStatus.Text="Copying "+BackupScriptFile_FullName+" profile to new "+machineBackupScript_FullName+"...";
 				Application.DoEvents();
 				//if (MainScriptFile_FullName!=thisDestFileFullName) {
-				CopyFileWithoutComments(BackupScriptFile_FullName, machineBackupScript_FullName, false   );
+				CopyFileWithoutComments(BackupScriptFile_FullName, machineBackupScript_FullName, false);
 				//}
 				isNew = true;
 			}			
@@ -3454,15 +3458,20 @@ namespace ExpertMultimedia {
 
 			Common.sParticiple = "locking \""+BackupScriptFile_FullName+"\"";
 			StreamWriter outStream = null;
+			string tmpPath = BackupScriptFile_FullName + ".tmp";
+			int nonCommentCount = 0;
 			try {
-				outStream = new StreamWriter(BackupScriptFile_FullName);
+				outStream = new StreamWriter(tmpPath);
 				tbStatus.Text = "Saving profile...";
 				Application.DoEvents();
 				bool IsDefault = false;
 				for (int rowIndex=0; rowIndex<optionsTableLayoutPanel.RowCount; rowIndex++) {
 					string line=optionsTableLayoutPanel.Controls["row"+rowIndex.ToString()+"CommandLabel"].Text;
 					if (line.Trim().ToLower()=="#backup gonow default") IsDefault=true;
-					if (!line.StartsWith("#")) line+=":"+optionsTableLayoutPanel.Controls["row"+rowIndex.ToString()+"ValueLabel"].Text;
+					if (!line.StartsWith("#")) {
+						line+=":"+optionsTableLayoutPanel.Controls["row"+rowIndex.ToString()+"ValueLabel"].Text;
+						nonCommentCount += 1;
+					}
 					if (!IsDefault || !line.StartsWith("#")) {
 						if ( (doNotSaveLineIfStartingWithAnyOfTheseStrings==null)
 						      || (!Common.StartsWithAny(line, doNotSaveLineIfStartingWithAnyOfTheseStrings)) ) {
@@ -3470,6 +3479,19 @@ namespace ExpertMultimedia {
 						}
 					}
 				}
+				outStream.Close();
+				outStream = null;
+				if (nonCommentCount < 1) {
+					MessageBox.Show("There are no commands, so "+BackupScriptFile_Name
+					                +" will not be saved. Close all "+sMyName
+					                +" windows and try again. If the problem persists,"
+					                +" contact support and examine \""+BackupProfileFolder_FullName+"\"");
+					return;
+				}
+				if (File.Exists(BackupScriptFile_FullName)) {
+					File.Delete(BackupScriptFile_FullName);
+				}
+				File.Move(tmpPath, BackupScriptFile_FullName);
 			}
 			catch (Exception exn) {
 				throw exn;
