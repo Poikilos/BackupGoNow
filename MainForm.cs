@@ -27,7 +27,7 @@ namespace ExpertMultimedia {
 	/// Description of MainForm.
 	/// </summary>
 	public partial class MainForm : Form {
-		public static string sMyNameAndVersion="Backup GoNow (git)";
+		public static string sMyNameAndVersion="Backup GoNow 2024.6.13";
 		public static string sMyName="Backup GoNow";
 		//ArrayList alPseudoRootsNow=null;
 		//ArrayList alSelectableDrives=null;
@@ -37,6 +37,10 @@ namespace ExpertMultimedia {
 		private bool profileCBSuspendEvents=false;
 		public static bool is_first_overlimit=true;
 		public static int iLine=0;
+		public static readonly ArrayList nonDatedDotExts = new ArrayList(new string[] {
+			".tc", // TrueCrypt volume (deprecated)
+			".hc" // VeraCrypt volume
+		});
 		public static bool bFoundLoadProfile=false;
 		public static bool bSuccessFullyResetStartup=false;
 		public static int iListedLines=0;
@@ -1093,6 +1097,73 @@ namespace ExpertMultimedia {
 			else bGood=true;
 			return bGood;
 		}  // end ReconstructPathOnBackup
+	
+	    public static bool FilesContentsAreEqual(FileInfo fileInfo1, FileInfo fileInfo2)
+	    {
+	    	// based on Lars' answer on https://stackoverflow.com/a/2637350/4541104
+	        bool result;
+	
+	        if (fileInfo1.Length != fileInfo2.Length)
+	        {
+	            result = false;
+	        }
+	        else
+	        {
+	            using (var file1 = fileInfo1.OpenRead())
+	            {
+	                using (var file2 = fileInfo2.OpenRead())
+	                {
+	                	result = StreamsContentsAreEqual(file1, file2, fileInfo1.Name, fileInfo1.Length);
+	                }
+	            }
+	        }
+	
+	        return result;
+	    }
+	
+	    private static bool StreamsContentsAreEqual(Stream stream1, Stream stream2, string name, long total)
+	    {
+	    	// based on Lars' answer on https://stackoverflow.com/a/2637350/4541104
+	        const int bufferSize = 1024 * sizeof(Int64);
+	        var buffer1 = new byte[bufferSize];
+	        var buffer2 = new byte[bufferSize];
+	        long offset = 0;
+	        long last_percent = 0;
+	
+	        while (true)
+	        {
+	            int count1 = stream1.Read(buffer1, 0, bufferSize);
+	            int count2 = stream2.Read(buffer2, 0, bufferSize);
+	            offset += bufferSize;
+	
+	            if (count1 != count2)
+	            {
+	                return false;
+	            }
+	
+	            if (count1 == 0)
+	            {
+	                return true;
+	            }
+	
+	            int iterations = (int)Math.Ceiling((double)count1 / sizeof(Int64));
+	            for (int i = 0; i < iterations; i++)
+	            {
+	                if (BitConverter.ToInt64(buffer1, i * sizeof(Int64)) != BitConverter.ToInt64(buffer2, i * sizeof(Int64)))
+	                {
+	                    return false;
+	                }
+	            }
+	            long percent = 100 * offset / total;
+	            if (percent - last_percent >= 5) {  // reduce GUI updates
+	            	if (tbStatusNow != null) {
+		            	tbStatusNow.Text = "Checking \""+name+"\", please wait..."+percent+"%";
+						Application.DoEvents();
+	            	}
+					last_percent = percent;
+	            }
+	        }
+	    }
 		
 		/*
 		public static ArrayList alAlreadyMD=new ArrayList();
@@ -1159,26 +1230,94 @@ namespace ExpertMultimedia {
 					if (!BackupFolder_ThenSlash.EndsWith(Common.sDirSep)) BackupFolder_ThenSlash+=Common.sDirSep;
 					sDestFile=BackupFolder_ThenSlash+fiNow.Name;
 					FileInfo fiDest=new FileInfo(sDestFile);
+					string dotExt = Path.GetExtension(fiNow.Name); // may return null
+					bool nonDated = nonDatedDotExts.Contains(dotExt);  // if null, still works (false)
+					bool multi_save = false;
+					bool update = false;
 					if (fiDest.Exists) {
-						if (fiDest.LastWriteTimeUtc<fiNow.LastWriteTimeUtc||fiDest.Length!=fiNow.Length) {
-							if (	fiDest.LastWriteTimeUtc==fiNow.LastWriteTimeUtc && fiDest.Length!=fiNow.Length )
+						if (fiDest.LastWriteTimeUtc==fiNow.LastWriteTimeUtc && fiDest.Length!=fiNow.Length) {
+							// *same* date, different length
+							Output(sDone+"Resaving: \""+sDestFile+"\"");
+							multi_save = true;
+						}
+						else if (fiDest.LastWriteTimeUtc==fiNow.LastWriteTimeUtc && nonDated) {
+							// *same* date, but non-dated (such as a mountable drive image)
+							tbStatus.Text = "Checking \""+fiNow.Name+"\", please wait...";
+							Application.DoEvents();
+							if (!FilesContentsAreEqual(fiNow, fiDest)) {
 								Output(sDone+"Resaving: \""+sDestFile+"\"");
-							else if ( fiDest.LastWriteTimeUtc>fiNow.LastWriteTimeUtc ) {
-								Console.Error.WriteLine(sDone+"Dest is newer: \""+sDestFile+"\"");
+								multi_save = true;
+								tbStatus.Text = "Checking \""+fiNow.Name+"\"...resaving.";
 							}
-							else
-								Output(sDone+"Updating: \""+sDestFile+"\"");
+							else {
+								Debug.WriteLine("Files match: source \""+fiNow.FullName+"\"and destination \""+fiDest.FullName+"\"");
+								tbStatus.Text = "Checking \""+fiNow.Name+"\"...already saved.";
+							}
+							Application.DoEvents();
+							
+						}
+						else if (fiDest.LastWriteTimeUtc>fiNow.LastWriteTimeUtc) {
+							LogWriteLine("Dest is newer: \""+sDestFile+"\"");
+						}
+						else if (fiDest.LastWriteTimeUtc<fiNow.LastWriteTimeUtc || fiDest.Length!=fiNow.Length) {
+							Output(sDone+"Updating: \""+sDestFile+"\"");
+							update = true;
+						}
+						if (update) {
+							// TODO: Store retroactive copy with get_retroactive_timed_folder_partialpath_from_UTC
 							if (!bTestOnly) {
-								if ( fiDest.LastWriteTimeUtc<fiNow.LastWriteTimeUtc
-								    || (fiDest.LastWriteTimeUtc==fiNow.LastWriteTimeUtc&&fiDest.Length!=fiNow.Length) )
 								lByteCountTotalActuallyAdded+=(long)fiNow.Length-(long)fiDest.Length;
 								sLastAttemptedCommand=sCP+" \""+SrcFile_FullName+"\" \""+sDestFile+"\"";
 								File.Copy(SrcFile_FullName,sDestFile,true);
 								ulByteCountTotalActuallyCopied+=(ulong)fiNow.Length;
 							}
 						}
+						else if (multi_save) {
+							// TODO: Store retroactive copy in special folder as per issue #21
+							if (!bTestOnly) {
+								lByteCountTotalActuallyAdded+=(long)fiNow.Length-(long)fiDest.Length;
+								sLastAttemptedCommand=sCP+" \""+SrcFile_FullName+"\" \""+sDestFile+"\"";
+								string firstDest = sDestFile + ".1st";
+								string bakDest = sDestFile + ".bak";
+								string badBakSrc = SrcFile_FullName + ".bak";
+								string badFirstSrc = SrcFile_FullName + ".1st";
+								if (File.Exists(badBakSrc)) {
+									LogWriteLine(
+										"Warning: there is an extra backup file \""+badBakSrc+"\""
+										+"which (if not excluded)"
+										+ " will interfere with multi-backup of non-dated file \""+bakDest+"\""
+									);
+								}
+								if (File.Exists(badFirstSrc)) {
+									LogWriteLine(
+										"Warning: there is an extra backup file \""+badFirstSrc+"\""
+										+"which (if not excluded)"
+										+ " will interfere with multi-backup of non-dated file \""+firstDest+"\""
+									);
+								}
+								
+								if (!File.Exists(firstDest)) {
+									File.Move(sDestFile, firstDest);
+									lByteCountTotalActuallyAdded += fiDest.Length;
+								}
+								else if (File.Exists(bakDest)) {
+									if (File.Exists(sDestFile)) {
+										lByteCountTotalActuallyAdded -= (new FileInfo(bakDest)).Length;
+										File.Delete(bakDest);
+										lByteCountTotalActuallyAdded += fiDest.Length;
+										File.Move(sDestFile, bakDest);
+									}
+								}
+								else if (File.Exists(sDestFile)) {
+									lByteCountTotalActuallyAdded += fiDest.Length;
+									File.Move(sDestFile, bakDest);
+								}
+								File.Copy(SrcFile_FullName,sDestFile,true);
+								ulByteCountTotalActuallyCopied+=(ulong)fiNow.Length;
+							}
+						}
 						else {
-							//already newer or same timestamp so ignore
+							// The file already appears to be backed up and up to date.
 							if (bOutputTrivial) Output(sDone+sWasUpToDate+": \""+sDestFile+"\"",false);
 							else {
 								this.labelTrivialStatus.Text=sDone+sWasUpToDate+": \""+sDestFile+"\"  (limited messages for faster performance)";
