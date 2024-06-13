@@ -60,7 +60,13 @@ namespace ExpertMultimedia {
 		public static StreamWriter streamBatchRetry=null;
 		//public static string sFileErrLog = "1.ErrLog.txt";//"1.Errors "+datetimeNow.ToString("yyyyMMddHHmm") + ".log";
 		public static TextWriter errStream = null;
-		public static string BackupProfileFolder_FullName="";
+		public static string ProfileName = "BackupGoNowDefault";
+		// ^ BackupProfileFolder_FullName gets changed when StartupFile_FullName is loaded.
+		public static string BackupProfileFolder_FullName {
+			get {
+				return Path.Combine(profilesFolder_FullName, ProfileName);
+			}
+		}
 		public static bool bDeleteFilesNotOnSource_AfterCopyingEachFolder=true;
 		public static bool bDeleteFilesNotOnSource_BeforeBackup=false;
 		//public static bool bRealTime=true;
@@ -77,19 +83,43 @@ namespace ExpertMultimedia {
 		public static string sAppName="Backup GoNow";
 		public static string MyAppDataFolder_FullName=null;
 		// public static string thisProfileFolder_FullName=null;
-		public static string profilesFolder_Name="profiles";
-		public static string profilesFolder_FullName=null;
-		public static string StartupScriptFile_Name="startup.ini";
-		public static string StartupFile_FullName="startup.ini";
-		public static string MainScriptFile_Name="main.ini";
-		public static string MainScriptFile_FullName="main.ini";
-		public static string BackupScriptFile_Name="script.txt";
-		public static string BackupScriptFile_FullName="script.txt";
-		public static string LogFile_Name="summary.log";
-		public static readonly string OutputFile_Name="Backup GoNow output.txt";
+		public static readonly string profilesFolder_Name = "profiles";
+		public static string profilesFolder_FullName {
+			get {
+				return Path.Combine(MyAppDataFolder_FullName, profilesFolder_Name);
+			}
+		}
+		public static readonly string StartupScriptFile_Name = "startup.ini";
+		public static string StartupFile_FullName {
+			get {
+				return Path.Combine(MyAppDataFolder_FullName, StartupScriptFile_Name);
+			}
+		}
+		public static readonly string MainScriptFile_Name = "main.ini";
+		public static string MainScriptFile_FullName {
+			get {
+				return Path.Combine(BackupProfileFolder_FullName, MainScriptFile_Name);
+			}
+		}
+		public static readonly string BackupScriptFile_Name="script.txt";
+		public static string BackupScriptFile_FullName {
+			get {
+				return Path.Combine(BackupProfileFolder_FullName, BackupScriptFile_Name);
+			}
+		}
+		public static readonly string LogFile_Name = "summary.log";
+		public static readonly string OutputFile_Name = "Backup GoNow output.txt";
 		public static readonly string LastRunLogFile_Name_DontTouchMe="1.LastRun Output.txt";
-		public static string LastRunLog_FullName=null;
-		public static string OutputFile_FullName="";//fixed in MainFormLoad
+		public static string LastRunLog_FullName {
+			get {
+				return Path.Combine(MyAppDataFolder_FullName, LastRunLogFile_Name_DontTouchMe);
+			}
+		}
+		public static string OutputFile_FullName {
+			get {
+				return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), OutputFile_Name);
+			}
+		}
 		public static MainForm mainformNow=null;
 		public static ListBox lbOutNow=null;
 		public static ulong ulByteCountTotalProcessed_LastRun=0;
@@ -257,12 +287,8 @@ namespace ExpertMultimedia {
 		public MainForm() {
 			MyAppDataFolder_FullName=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),sMyName);
 			RetryBatchFile_FullName=Path.Combine(MyAppDataFolder_FullName,RetryBatchFile_Name_DontTouchMe);
-			LastRunLog_FullName=Path.Combine(MyAppDataFolder_FullName,LastRunLogFile_Name_DontTouchMe);
-			profilesFolder_FullName=Path.Combine(MyAppDataFolder_FullName,profilesFolder_Name);
+			
 			// thisProfileFolder_FullName=Path.Combine(profilesFolder_FullName,"BackupGoNowDefault");
-			BackupProfileFolder_FullName = Path.Combine(profilesFolder_FullName, "BackupGoNowDefault");
-			// ^ BackupProfileFolder_FullName gets changed when StartupFile_FullName is loaded.
-			StartupFile_FullName=Path.Combine(MyAppDataFolder_FullName,StartupScriptFile_Name);
 			//
 			// The InitializeComponent() call is required for Windows Forms designer support.
 			//
@@ -1468,7 +1494,7 @@ namespace ExpertMultimedia {
 //			}
 			Console.Error.WriteLine("Running startupTimer");
 			
-			startupTimer.Start();
+			startupTimer.Start(); // runs StartupTimerTick after GUI is finished loading.
 			
 		}//end MainFormLoad
 		void CalculateMargins() {
@@ -1916,7 +1942,6 @@ namespace ExpertMultimedia {
 					this.menuitemEditMain.Enabled=false;
 					Console.Error.Write("LoadProfile...");
 					Console.Error.Flush();
-					//BackupProfileFolder_FullName=".";
 					char foundSlash=Common.getSlash(sValue);
 					//string BackupProfileFolder_FullName_TEMP=Path.Combine( Path.Combine(".","profiles"), sValue );
 					string BackupProfileFolder_FullName_TEMP=null;
@@ -1932,13 +1957,13 @@ namespace ExpertMultimedia {
 						Console.Error.Write("found...");
 						Console.Error.Flush();
 						DirectoryInfo diProfileX = new DirectoryInfo(BackupProfileFolder_FullName_TEMP);
-						BackupProfileFolder_FullName = diProfileX.FullName;
+						ProfileName = diProfileX.Name;
 						
 						this.menuitemEditScript.Enabled=true;
 						this.menuitemEditMain.Enabled=true;
 						Common.ClearInvalidDrives();
 						Common.ClearExtraDestinations();
-						string MainScriptFile_FullName=Path.Combine(BackupProfileFolder_FullName,MainScriptFile_Name);
+						
 						//string ProfileFolder_FullName;
 						RunScript(MainScriptFile_FullName, recreateFullPathCheckBox.Checked, 1000); //excludes and adds destinations
 						
@@ -2063,20 +2088,19 @@ namespace ExpertMultimedia {
 							Debug.WriteLine("Warning: \""+sLine+"\" after GetPseudoRoots_CountNonNull took "+msss(watch.ElapsedMilliseconds)+"s");
 						}
 						
-						this.profileLabel.Text="Profile: "+Environment.UserName;
+						this.profileLabel.Text="(User: "+Environment.UserName+") Configuration:";
 						if (!this.profileCB.Items.Contains(diProfileX.Name)) {
 							this.profileCB.Items.Add(diProfileX.Name);
 						}
 						
 						ExpandProfileDropDown();
 						// this.profileCB.Text = diProfileX.Name;
-						if (diProfileX.Name=="BackupGoNowDefault") {
-							if (this.profileLabel.Text.EndsWith("s"))
-								this.profileLabel.Text+="'";
-							else this.profileLabel.Text+="'s";
-						}
+//						if (diProfileX.Name=="BackupGoNowDefault") {
+//							if (this.profileLabel.Text.EndsWith("s"))
+//								this.profileLabel.Text+="'";
+//							else this.profileLabel.Text+="'s";
+//						}
 						DisplayLoadedProfileName();
-						BackupScriptFile_FullName=Path.Combine(BackupProfileFolder_FullName, BackupScriptFile_Name);
 						if (timeoutMS > 0 && watch.ElapsedMilliseconds > timeoutMS) {
 							Debug.WriteLine("Warning: \""+sLine+"\" before ShowOptions took "+msss(watch.ElapsedMilliseconds)+"s");
 						}
@@ -2086,43 +2110,6 @@ namespace ExpertMultimedia {
 							Debug.WriteLine("Warning: \""+sLine+"\" after ShowOptions took "+msss(watch.ElapsedMilliseconds)+"s");
 						}
 						
-						string thisProfileFolder_FullName=Path.Combine(profilesFolder_FullName,Environment.MachineName);
-						if (!Directory.Exists(thisProfileFolder_FullName)) {
-							Directory.CreateDirectory(thisProfileFolder_FullName);
-						}
-						//string CopyFileErrors="";
-						string thisDestFileFullName="";
-						Common.sParticiple="rewriting "+MainScriptFile_Name;
-						thisDestFileFullName=Path.Combine( thisProfileFolder_FullName , MainScriptFile_Name );
-						if (   !File.Exists(  thisDestFileFullName  )   ) {
-							tbStatus.Text="Copying profile...rewriting "+MainScriptFile_Name+"...";
-							Application.DoEvents();
-							
-							//if (MainScriptFile_FullName!=thisDestFileFullName) {
-							CopyFileWithoutComments(MainScriptFile_FullName, thisDestFileFullName, false  );
-							//}
-							MainScriptFile_FullName=thisDestFileFullName;
-						}
-						// NOTE: BackupScriptFile_FullName is set to it below if it is new
-						Common.sParticiple="continuing after rewriting "+thisDestFileFullName;
-						Common.sParticiple="rewriting "+BackupScriptFile_Name;
-						thisDestFileFullName=Path.Combine( thisProfileFolder_FullName , BackupScriptFile_Name );
-						if (  !File.Exists( thisDestFileFullName )  ) {
-							tbStatus.Text="Copying profile...rewriting "+BackupScriptFile_Name+"...";
-							Application.DoEvents();
-							//if (MainScriptFile_FullName!=thisDestFileFullName) {
-							CopyFileWithoutComments(BackupScriptFile_FullName, thisDestFileFullName, false   );
-							//}
-							BackupScriptFile_FullName=thisDestFileFullName;
-							// Switch to the machine profile since it is new:
-							BackupScriptFile_FullName = thisProfileFolder_FullName;
-							DisplayLoadedProfileName();
-						}
-						if (timeoutMS > 0 && watch.ElapsedMilliseconds > timeoutMS) {
-							Debug.WriteLine("Warning: \""+sLine+"\" after checking for unsaved generated profiles took "+msss(watch.ElapsedMilliseconds)+"s");
-						}
-						
-						Common.sParticiple="continuing after rewriting "+thisDestFileFullName;
 						//Common.sParticiple="before calling save options";
 						tbStatus.Text="Saving options...";
 						Application.DoEvents();
@@ -3021,23 +3008,16 @@ namespace ExpertMultimedia {
 				Debug.WriteLine("Warning: skipping startup since already started (startup timer ticked again).");
 				return;
 			}
+			// FIXME: Load startup file *before* deciding which profile to load.
 			IsStartupStarted=true;
 			startupTimer.Stop();
+			bool startupIsNew = false; // no profile was chosen. This stores the name.
 			if (!File.Exists(StartupFile_FullName)) {
 				writeDefault_StartupScript(StartupFile_FullName);
+				startupIsNew = true;
 			}
-			string thisProfileFolder_FullName=Path.Combine(profilesFolder_FullName,"BackupGoNowDefault");
-			if (!Directory.Exists(thisProfileFolder_FullName)) {
-				Directory.CreateDirectory(thisProfileFolder_FullName);
-			}
-			MainScriptFile_FullName=Path.Combine(thisProfileFolder_FullName,MainScriptFile_Name);
-			if (!File.Exists(MainScriptFile_FullName)) {
-				writeDefault_MainScript(MainScriptFile_FullName);
-			}
-			BackupScriptFile_FullName=Path.Combine(thisProfileFolder_FullName,BackupScriptFile_Name);
-			if (!File.Exists(BackupScriptFile_FullName)) {
-				writeDefault_BackupScript(BackupScriptFile_FullName);
-			}
+			bool backupIsNew = CreateDefaultConfiguration();
+			bool machineScriptIsNew = CreateMachineConfiguration();
 			
 			Console.Error.WriteLine("Timed startup is about to open " + Common.SafeString(StartupFile_FullName,true));
 			DateTime dtNow=DateTime.Now;
@@ -3074,7 +3054,6 @@ namespace ExpertMultimedia {
 			sMsg="Attempting to get path of current user's Documents...";
 			tbStatus.Text=sMsg;
 			Application.DoEvents();
-			OutputFile_FullName=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),OutputFile_Name);
 			sMsg="Welcome to "+sMyName+"!";
 			tbStatus.Text=sMsg;
 			try {
@@ -3088,7 +3067,8 @@ namespace ExpertMultimedia {
 			if (!bLoadedProfile) {  //TODO: deprecate this case
 				Console.Error.WriteLine(Common.SafeString(StartupScriptFile_Name,true)+" did not load a profile so loading default (\""+DefaultProfile_Name+"\")");
 				bool bTest=RunScriptLine("LoadProfile:"+DefaultProfile_Name, recreateFullPathCheckBox.Checked, "<automation in StartupTimerTick>", -1, 500);
-				Console.Error.WriteLine("Loaded Profile \""+DefaultProfile_Name+"\"..."+(bTest?"OK":"FAILED!"));
+				DirectoryInfo diBackupScript = new DirectoryInfo(BackupScriptFile_FullName); // FullName is set by LoadProfile called directly above
+				Debug.WriteLine("Loaded Profile \""+diBackupScript.Name+"\"..."+(bTest?"OK":"FAILED!"));
 				string sAllData="";
 				try {
 					sMsg="Attempting to edit "+Common.SafeString(StartupScriptFile_Name,true)+" and add \"LoadProFile:"+DefaultProfile_Name+"\" if no valid LoadProfile statement is found...";
@@ -3115,7 +3095,10 @@ namespace ExpertMultimedia {
 									if (sLine==" ") {sLine=""; break;}
 									else sLine=sLine.Substring(1);
 								}
-								if (sLine.ToLower().StartsWith("loadprofile:")&&sLine.ToLower()!="loadprofile:") bFoundLoadProfile=true;
+								if (sLine.ToLower().StartsWith("loadprofile:")&&sLine.ToLower()!="loadprofile:") {
+									sAllData+="LoadProfile:"+BackupScriptFile_Name+Environment.NewLine;
+									bFoundLoadProfile=true;
+								}
 								else sAllData+=sLine+Environment.NewLine;
 							}
 							streamIn.Close();
@@ -3152,7 +3135,64 @@ namespace ExpertMultimedia {
 			CalculateMargins();
 			UpdateSize();
 			optionsHelpLabel.Visible=true;
-		}//end StartupTimerTick 
+		}//end StartupTimerTick
+		
+		public bool CreateDefaultConfiguration() {
+			bool backupIsNew = false;
+			string defaultProfileFolder_FullName=Path.Combine(profilesFolder_FullName,"BackupGoNowDefault");
+			if (!Directory.Exists(defaultProfileFolder_FullName)) {
+				Directory.CreateDirectory(defaultProfileFolder_FullName);
+				backupIsNew = true;
+			}
+			string defaultMainScriptFile_FullName=Path.Combine(defaultProfileFolder_FullName,MainScriptFile_Name);
+			if (!File.Exists(defaultMainScriptFile_FullName)) {
+				writeDefault_MainScript(defaultMainScriptFile_FullName);
+				backupIsNew = true;
+			}
+			string defaultBackupScriptFile_FullName=Path.Combine(defaultProfileFolder_FullName,BackupScriptFile_Name);
+			if (!File.Exists(defaultBackupScriptFile_FullName)) {
+				writeDefault_BackupScript(defaultBackupScriptFile_FullName);
+				backupIsNew = true;
+			}
+			return backupIsNew;
+		}
+		
+		public bool CreateMachineConfiguration() {
+			bool isNew = false;
+			string machineProfileFolder_FullName=Path.Combine(profilesFolder_FullName,Environment.MachineName);
+			if (!Directory.Exists(machineProfileFolder_FullName)) {
+				Directory.CreateDirectory(machineProfileFolder_FullName);
+				isNew = true;
+			}
+			//string CopyFileErrors="";
+			string machineMainScript_FullName="";
+			machineMainScript_FullName=Path.Combine( machineProfileFolder_FullName, MainScriptFile_Name );
+			if (   !File.Exists(  machineMainScript_FullName  )   ) {
+				Common.sParticiple="creating "+machineMainScript_FullName;
+				tbStatus.Text="Copying "+MainScriptFile_FullName+" to new "+MainScriptFile_Name+"...";
+				Application.DoEvents();
+				
+				//if (MainScriptFile_FullName!=thisDestFileFullName) {
+				CopyFileWithoutComments(MainScriptFile_FullName, machineMainScript_FullName, false  );
+				//}
+				isNew = true;
+			}
+			// NOTE: BackupScriptFile_FullName is set to it below if it is new
+			Common.sParticiple="continuing after rewriting "+machineMainScript_FullName;
+			
+			string machineBackupScript_FullName=Path.Combine(machineProfileFolder_FullName, BackupScriptFile_Name);
+			if (!File.Exists(machineBackupScript_FullName)) {
+				Common.sParticiple="rewriting "+machineBackupScript_FullName;
+				tbStatus.Text="Copying "+BackupScriptFile_FullName+" profile to new "+machineBackupScript_FullName+"...";
+				Application.DoEvents();
+				//if (MainScriptFile_FullName!=thisDestFileFullName) {
+				CopyFileWithoutComments(BackupScriptFile_FullName, machineBackupScript_FullName, false   );
+				//}
+				isNew = true;
+			}			
+			Common.sParticiple="continuing after rewriting "+machineBackupScript_FullName;
+			return isNew;
+		}
 		
 		public void SaveOptions() {
 			SaveOptions(null);
@@ -3163,26 +3203,47 @@ namespace ExpertMultimedia {
 				StackTrace stackTrace = new StackTrace();
 				participle="saving options (from "+stackTrace.GetFrame(1).GetMethod().Name+")";
 				Common.sParticiple=participle;
-				if (!Directory.Exists(MyAppDataFolder_FullName)) {
-					participle="creating subfolder in %APPDATA%";
-					Common.sParticiple=participle;
-					Directory.CreateDirectory(MyAppDataFolder_FullName);
-				}
-				if (!Directory.Exists(profilesFolder_FullName)) {
-					participle="creating folder for profiles in %APPDATA%"+Common.sDirSep+sMyName+Common.sDirSep+profilesFolder_Name;
-					Common.sParticiple=participle;
-					Directory.CreateDirectory(profilesFolder_FullName);
-				}			
-				if (!Directory.Exists(BackupProfileFolder_FullName)) {
-					participle="creating profile folder in %APPDATA%"+Common.sDirSep+sMyName;
-					Common.sParticiple=participle;
-					Directory.CreateDirectory(BackupProfileFolder_FullName);
-				}
 				//BackupProfileFolder_FullName=Path.Combine(BackupProfileFolder_FullName,Environment.MachineName);
 				//BackupScriptFile_FullName=Path.Combine(BackupProfileFolder_FullName,BackupScriptFile_Name);
-				participle="locking \""+BackupScriptFile_FullName+"\"";
-				Common.sParticiple=participle;
-				StreamWriter outStream=new StreamWriter(BackupScriptFile_FullName);
+				// TODO: Save main.ini
+				SaveBackupScript(doNotSaveLineIfStartingWithAnyOfTheseStrings);
+				tbStatus.Text="Saving profile...OK";
+				Application.DoEvents();
+				if (!File.Exists(Path.Combine(MyAppDataFolder_FullName,StartupScriptFile_Name))) {
+					Common.sParticiple="changing startup file path to use machine profile";  // FIXME: Do this or change participle
+				}
+				participle="saving startup file";
+				SaveStartupFile();
+				Application.DoEvents();
+			}
+			catch (Exception exn) {
+				tbStatus.Text = "Saving options failed.";
+				Console.Error.WriteLine("Could not finish "+Common.sParticiple+" in SaveOptions (during script "+ToString(scriptFileNameStack," calling ")+"): "+exn.ToString());
+			}
+		}
+		
+		/// <summary>
+		/// Save the profile-specific backup script (only script.txt)
+		/// </summary>
+		/// <param name="doNotSaveLineIfStartingWithAnyOfTheseStrings"></param>
+		void SaveBackupScript(string[] doNotSaveLineIfStartingWithAnyOfTheseStrings) {
+			if (!Directory.Exists(MyAppDataFolder_FullName)) {
+				Common.sParticiple = "creating subfolder in %APPDATA%";
+				Directory.CreateDirectory(MyAppDataFolder_FullName);
+			}
+			if (!Directory.Exists(profilesFolder_FullName)) {
+				Common.sParticiple = "creating folder for profiles in %APPDATA%"+Common.sDirSep+sMyName+Common.sDirSep+profilesFolder_Name;
+				Directory.CreateDirectory(profilesFolder_FullName);
+			}			
+			if (!Directory.Exists(BackupProfileFolder_FullName)) {
+				Common.sParticiple = "creating profile folder in %APPDATA%"+Common.sDirSep+sMyName;
+				Directory.CreateDirectory(BackupProfileFolder_FullName);
+			}
+
+			Common.sParticiple = "locking \""+BackupScriptFile_FullName+"\"";
+			StreamWriter outStream = null;
+			try {
+				outStream = new StreamWriter(BackupScriptFile_FullName);
 				tbStatus.Text="Saving profile...";
 				Application.DoEvents();
 				bool IsDefault=false;
@@ -3191,35 +3252,38 @@ namespace ExpertMultimedia {
 					if (line.Trim().ToLower()=="#backup gonow default") IsDefault=true;
 					if (!line.StartsWith("#")) line+=":"+optionsTableLayoutPanel.Controls["row"+rowIndex.ToString()+"ValueLabel"].Text;
 					if (!IsDefault || !line.StartsWith("#")) {
-						if ( (doNotSaveLineIfStartingWithAnyOfTheseStrings==null) || (!Common.StartsWithAny(line, doNotSaveLineIfStartingWithAnyOfTheseStrings)) ) {
+						if ( (doNotSaveLineIfStartingWithAnyOfTheseStrings==null)
+						      || (!Common.StartsWithAny(line, doNotSaveLineIfStartingWithAnyOfTheseStrings)) ) {
 							outStream.WriteLine(line);
 						}
 					}
 				}
-				outStream.Close();
-				tbStatus.Text="Saving profile...OK";
-				Application.DoEvents();
-				if (!File.Exists(Path.Combine(MyAppDataFolder_FullName,StartupScriptFile_Name))) {
-					participle="changing startup file path to use machine profile";
-					Common.sParticiple=participle;
-					StartupFile_FullName=Path.Combine(MyAppDataFolder_FullName,StartupScriptFile_Name);
-				}
-				participle="saving startup file";
-				SaveStartupFile();
-				Application.DoEvents();
 			}
-			catch (Exception exn) {
-				Console.Error.WriteLine("Could not finish "+Common.sParticiple+" in SaveOptions (during script "+ToString(scriptFileNameStack," calling ")+"): "+exn.ToString());
+			finally {
+				if (outStream != null) outStream.Close();
 			}
 		}
 		
+		/// <summary>
+		/// Save BackupProfileFolder_FullName to StartupFile_FullName
+		/// </summary>
 		void SaveStartupFile() {
+			if (!Directory.Exists(MyAppDataFolder_FullName)) {
+				Common.sParticiple="creating subfolder in %APPDATA%";
+				Directory.CreateDirectory(MyAppDataFolder_FullName);
+			}
 			Common.sParticiple = "saving startup file";
 			tbStatus.Text = "Saving startup file...";
 			Application.DoEvents();
-			StreamWriter startupIniStream = new StreamWriter(StartupFile_FullName);
-			startupIniStream.WriteLine("LoadProfile:"+BackupProfileFolder_FullName);
-			startupIniStream.Close();
+			StreamWriter startupIniStream = null;
+			try {
+				startupIniStream = new StreamWriter(StartupFile_FullName);
+				startupIniStream.WriteLine("LoadProfile:"+BackupProfileFolder_FullName);
+			}
+			finally {
+				if (startupIniStream != null)
+					startupIniStream.Close();
+			}
 			tbStatus.Text="Saving startup file...OK";
 			Debug.WriteLine("Saved "+StartupFile_FullName+" with LoadProfile:"+BackupProfileFolder_FullName);
 		}
