@@ -8,6 +8,15 @@ Annotations:
 * *affects main.ini*: means the change requires updating user's main.ini manually if was created with older version.
 * A date in brackets is for releases that had the date as the version.
 
+## [24.6.13] - 2024-06-13
+### Fixed
+- Wait until a configuration is completely written and validated before saving over the original.
+  - Consolidate path, saving, and loading code.
+- Handle all situations regarding missing, blank, or invalid startup.ini (regarding selecting profiles).
+- Manage "non-dated" files (TrueCrypt and VeraCrypt image files where timestamp doesn't change when files inside are modified--See #16)
+  - Requires hc or tc extension!
+- **Full Changelog**: https://github.com/Poikilos/BackupGoNow/compare/1.0.2...24.6.13
+
 ## [1.0.2] - 2018-06-14
 (changed 2018-06-14; tagged 2018-06-15 on GitHub)
 ### Added
@@ -58,19 +67,19 @@ Annotations:
 
 ## [Unreleased] - 2016-02-21
 ### Added
-* places files in "tl" folder if file path is too long to backup properly otherwise (and records full source path for use during restore) 
+* places files in "tl" folder if file path is too long to backup properly otherwise (and records full source path for use during restore)
 * use user profile fully: single "launcher" file can be placed anywhere and generates any files it needs in your user profile
 
 ## [Unreleased] - 2015-07-30
 ### Changed
 * *affects script.txt*, *affects main.ini* Changed default profile -- main.ini: no longer use DestSubFolder option, no longer exclude D:, exclude some standard names of recovery drives (see Developer Notes section below) in order to not use them as destinations; script.txt: add only specific APPDATA and LOCALAPPDATA
-  
-  
+
+
 ## [Unreleased] - 2012-07-12
 ### Changed
 * Fixed problem where showing incorrect error message due to comparing index >-2 instead of >-1 (added new messages for "being used by another process" & "UnauthorizedAccessException" instead of telling user that the filename was too long in those cases)
 * only change lByteCountTotalActuallyAdded if Copy succeeded
-  
+
 ## [2012-05-21] - 2012-05-21
 ### Added
 * (2010-12-12) option to view log (using default txt viewer) under help menu
@@ -84,7 +93,7 @@ Annotations:
 * (2011-02-22) Moved general file handling and drive management methods to Common.cs and LocInfo.cs, and now these files are references to those from the ForwardFileSync project.
 * (2010-12-12) remove whitespace from beginning and end of line in RunScriptLine method
 * (2010-11-14) Message should say out of space instead of filename too long when out of space exception string contains "system.io.ioexception: there is not enough space on the disk"
-* (~2010-11-13) account for files previously backed up manually (so they aren't deleted).  
+* (~2010-11-13) account for files previously backed up manually (so they aren't deleted).
 
 
 ## [2009-09-09] - 2009-09-09
