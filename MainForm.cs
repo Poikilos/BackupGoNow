@@ -1187,6 +1187,79 @@ namespace ExpertMultimedia {
 		//public string BackupFile(string SrcFile_FullName, bool enableRecreateFullPath, string baseSourcePath) {
 		//	return BackupFile(SrcFile_FullName, enableRecreateFullPath, null);
 		//}
+
+		/*
+		"A Windows file time is a 64-bit value that represents the
+		number of 100-nanosecond intervals that have elapsed since
+		12:00 midnight, January 1, 1601 A.D. (C.E.) Coordinated
+		Universal Time (UTC)."
+		-<https://learn.microsoft.com/en-us/dotnet/api/system.datetime.tofiletimeutc?view=net-8.0>
+		Therefore:
+		*/
+		public const long winFileTimeUnitsPerSec = 1000000000 / 100;  // 1 billion / 100 == 10,000,000
+		public const long variance = 20000000-1;  // 20 million increments is 2 seconds
+
+		/// <summary>
+		/// Fix an odd issue where time differs by one second after copied:
+		/// `Dest is newer: "...Screenshot 2020-12-15 023148.png" 12/15/2020 7:31:52 AM>12/15/2020 7:31:51 AM`
+		/// where dest is first and "..." is redacted.
+		/// Therefore, *always* use SameWriteTime or GreaterWriteTime instead of LastWriteTimeUtc!
+		/// See also:
+		/// https://www.reddit.com/r/PowerShell/comments/2xanvb/comparing_lastwritetime_on_servers_with_time_off/
+		/// </summary>
+		/// <param name="fi1"></param>
+		/// <param name="fi2"></param>
+		/// <returns>True if same within variance</returns>
+		public static bool SameWriteTime(FileInfo fi1, FileInfo fi2) {
+			// long variance_seconds = 1;
+			// long variance = variance_seconds * per_second;
+			// or:
+			// long variance = 1;
+			// long timestamp1 = fi1.LastWriteTime.ToFileTimeUtc() / winFileTimeUnitsPerSec;
+			// long timestamp2 = fi2.LastWriteTime.ToFileTimeUtc() / winFileTimeUnitsPerSec;
+			// ^ fails with "script - Copy.txt" 133627719800000000>133627719782998069" so:
+			long timestamp1 = fi1.LastWriteTime.ToFileTimeUtc();
+			long timestamp2 = fi2.LastWriteTime.ToFileTimeUtc();
+			if (timestamp1 == timestamp2) {
+				return true;
+			}
+			if (Math.Abs(timestamp1 - timestamp2) <= variance) {
+				return true;
+			}
+			return false;
+		}
+
+		/// <summary>
+		/// Fix an odd issue where time differs by one second after copied:
+		/// `Dest is newer: "...Screenshot 2020-12-12 065846.png" 132522479300000000>132522479290000000`
+		/// where dest is first and "..." is redacted.
+		/// Therefore, *always* use SameWriteTime or GreaterWriteTime instead of LastWriteTimeUtc!
+		/// See also:
+		/// https://www.reddit.com/r/PowerShell/comments/2xanvb/comparing_lastwritetime_on_servers_with_time_off/
+		/// </summary>
+		/// <param name="fi1"></param>
+		/// <param name="fi2"></param>
+		/// <returns>True if fi1 is greater within variance</returns>
+		public static bool GreaterWriteTime(FileInfo fi1, FileInfo fi2) {
+			if (SameWriteTime(fi1, fi2)) {
+				return false;
+			}
+			// long variance_seconds = 1;
+			// long variance = variance_seconds * per_second;
+			// long timestamp1 = fi1.LastWriteTime.ToFileTimeUtc() / winFileTimeUnitsPerSec;
+			// long timestamp2 = fi2.LastWriteTime.ToFileTimeUtc() / winFileTimeUnitsPerSec;
+			// ^ fails with "script - Copy.txt" 133627719800000000>133627719782998069
+			// ^ still fails with "desktop.ini" 133626953980000000>133626953960573144 so:
+			long timestamp1 = fi1.LastWriteTime.ToFileTimeUtc();
+			long timestamp2 = fi2.LastWriteTime.ToFileTimeUtc();
+			if (timestamp1 > timestamp2) {
+				return true;
+			}
+			if (timestamp1 > timestamp2 - variance) {
+				return true;
+			}
+			return false;
+		}
 		
 		
 		/// <summary>
@@ -1219,13 +1292,13 @@ namespace ExpertMultimedia {
 					//string BackupFolder_ThenSlash=enableRecreateFullPath?ReconstructedBackupPath(fiNow.Directory.FullName, enableRecreateFullPath, baseSourcePath, null):Common.LocalFolderThenSlash(DestinationDriveRootDirectory_FullName_OrSlashIfRootDir);
 					string BackupFolder_ThenSlash=ReconstructedBackupPath(fiNow.Directory.FullName, enableRecreateFullPath, baseSourcePath, null);
 					//if (enableRecreateFullPath) {
-					
+
 					if (!Directory.Exists(ReconstructedBackupPath(fiNow.Directory.FullName, enableRecreateFullPath, baseSourcePath, null))) {
 						ReconstructPathOnBackup(fiNow.Directory.FullName, enableRecreateFullPath, baseSourcePath);
 					}
-					
+
 					//} // else store it directly to root (+DesSubFolderRelNameThenSlash if non-null) and assume root exists (required for manual operation)
-					
+
 					if (!BackupFolder_ThenSlash.EndsWith(Common.sDirSep)) BackupFolder_ThenSlash+=Common.sDirSep;
 					sDestFile=BackupFolder_ThenSlash+fiNow.Name;
 					FileInfo fiDest=new FileInfo(sDestFile);
@@ -1234,12 +1307,12 @@ namespace ExpertMultimedia {
 					bool multi_save = false;
 					bool update = false;
 					if (fiDest.Exists) {
-						if (fiDest.LastWriteTimeUtc==fiNow.LastWriteTimeUtc && fiDest.Length!=fiNow.Length) {
+						if (SameWriteTime(fiDest, fiNow) && fiDest.Length!=fiNow.Length) {
 							// *same* date, different length
 							Output(sDone+"Resaving: \""+sDestFile+"\"");
 							multi_save = true;
 						}
-						else if (fiDest.LastWriteTimeUtc==fiNow.LastWriteTimeUtc && nonDated) {
+						else if (SameWriteTime(fiDest, fiNow) && nonDated) {
 							// *same* date, but non-dated (such as a mountable drive image)
 							tbStatus.Text = "Checking \""+fiNow.Name+"\", please wait...";
 							Application.DoEvents();
@@ -1249,19 +1322,38 @@ namespace ExpertMultimedia {
 								tbStatus.Text = "Checking \""+fiNow.Name+"\"...resaving.";
 							}
 							else {
-								Debug.WriteLine("Files match: source \""+fiNow.FullName+"\"and destination \""+fiDest.FullName+"\"");
+								// *Content* is equal, so do not save, but log it for these!
+								string msg = "File contents match: source \""+fiNow.FullName+"\" and destination \""+fiDest.FullName+"\"";
+								Debug.WriteLine(msg);
+								Output(msg);
 								tbStatus.Text = "Checking \""+fiNow.Name+"\"...already saved.";
 							}
 							Application.DoEvents();
-							
 						}
-						else if (fiDest.LastWriteTimeUtc>fiNow.LastWriteTimeUtc) {
-							LogWriteLine("Dest is newer: \""+sDestFile+"\"");
+						else if (GreaterWriteTime(fiDest, fiNow)) {
+							LogWriteLine("Dest is newer: \""+sDestFile+"\" "+fiDest.LastWriteTime.ToFileTimeUtc().ToString()+">"+fiNow.LastWriteTime.ToFileTimeUtc().ToString());
 						}
-						else if (fiDest.LastWriteTimeUtc<fiNow.LastWriteTimeUtc || fiDest.Length!=fiNow.Length) {
+						else if (GreaterWriteTime(fiNow, fiDest) || fiDest.Length!=fiNow.Length) {
 							Output(sDone+"Updating: \""+sDestFile+"\"");
 							update = true;
 						}
+
+						if (!SameWriteTime(fiDest, fiNow) && nonDated) {
+							// If nonDated file was not logged yet, log it for clarity.
+							if (GreaterWriteTime(fiDest, fiNow)) {
+								LogWriteLine("\""+fiDest.FullName+"\" was newer: "+fiDest.LastWriteTime.ToFileTimeUtc().ToString()+">"+fiNow.LastWriteTime.ToFileTimeUtc().ToString());
+								multi_save = true;
+							}
+							else if (SameWriteTime(fiDest, fiNow)) {
+								LogWriteLine("\""+fiDest.FullName+"\" was same: "+fiDest.LastWriteTime.ToFileTimeUtc().ToString()+"=="+fiNow.LastWriteTime.ToFileTimeUtc().ToString());
+								multi_save = true;
+							}
+							else {
+								LogWriteLine("\""+fiDest.FullName+"\" was older: "+fiDest.LastWriteTime.ToFileTimeUtc().ToString()+"<"+fiNow.LastWriteTime.ToFileTimeUtc().ToString());
+								multi_save = true;
+							}
+						}
+
 						if (update) {
 							// TODO: Store retroactive copy with get_retroactive_timed_folder_partialpath_from_UTC
 							if (!bTestOnly) {
@@ -3132,10 +3224,14 @@ namespace ExpertMultimedia {
 						//	partialMsg+=" with "+alCopyError.Count.ToString()+" error(s) starting with \n\"" +
 						//		(string)alCopyError[0]+"\"";
 						//}
-						MessageBox.Show("Finished Backup" + partialMsg + ".\n\nLog ("+iMessages.ToString()+" message(s)) saved to \""+fiSaved.FullName+"\"",sMyName);//DialogResult dlg=MessageBox.Show(sFileList+"\n\n  Do you wish to to review the list (press cancel to exit)?","Result", MessageBoxButtons.OKCancel);
-						//if (dlg==DialogResult.OK) bUserSaysStayOpen=true;
-						//else
-							bUserSaysStayOpen=false;
+						DialogResult answer = MessageBox.Show(
+							"Finished Backup" + partialMsg + ".\n\nLog ("+iMessages.ToString()+" message(s)) saved to \""+fiSaved.FullName+"\"",
+							sMyName,
+							MessageBoxButtons.OK,
+							MessageBoxIcon.Information
+						);//DialogResult dlg=MessageBox.Show(sFileList+"\n\n  Do you wish to to review the list (press cancel to exit)?","Result", MessageBoxButtons.OKCancel);
+						if (answer == DialogResult.Cancel) bUserSaysStayOpen=true; // deprecated
+						else bUserSaysStayOpen=false;
 					}//end if bCopyErrorLastRun
 					else {
 						WriteLastRunLog();
